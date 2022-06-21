@@ -3,11 +3,12 @@ import pandas as pd
 import chess
 import re
 
-#
+# removes extraneous symbols
 def parse_san(moves):
     parsed_moves = re.sub(r'(\d+\.\s)|(x)|(#)|(\+)', lambda x: '', moves)
     return parsed_moves
 
+# converts to long algebraic notation: e4 -> e2e4 etc.
 def san_to_lan(moves):
   board = chess.Board()
   lan = ""
@@ -114,3 +115,16 @@ def fen_to_board(fen, piece_values=[1, 3, 3, 5, 8, 1], white_turn=True):
         return -np.flip(board, axis=(1, 2))
     else:
         return board
+
+
+class ToTensor(object):
+    """Convert ndarrays in sample to Tensors."""
+    def __call__(self, sample):
+        board_state, from_square, to_square = sample[0], sample[1], sample[2]
+
+        # swap color axis because
+        # numpy image: H x W x C
+        # torch image: C x H x W
+        image = image.transpose((2, 0, 1))
+        return {'image': torch.from_numpy(image),
+                'landmarks': torch.from_numpy(landmarks)}
