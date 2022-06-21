@@ -1,2 +1,3 @@
 ELO_LOWER_LIMIT = 2000
 DATA_DIR = "./data/"
+PIECE_VALUES = [1, 3, 3, 5, 8, 1]
