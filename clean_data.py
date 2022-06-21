@@ -24,7 +24,7 @@ def clean_data(data, save_path):
         print("Saving parsed_lans.csv...")
         parsed_lans.to_csv(save_path + f"parsed_lans_{ELO_LOWER_LIMIT}elo.zip", header=False, index=False)
     else:
-        parsed_lans = pd.read_csv(save_path + f"parsed_lans_{ELO_LOWER_LIMIT}elo.zip")
+        parsed_lans = pd.read_csv(save_path + f"parsed_lans_{ELO_LOWER_LIMIT}elo.zip").squeeze()
     return parsed_sans, parsed_lans
 
 
