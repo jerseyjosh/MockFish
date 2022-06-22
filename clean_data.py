@@ -3,11 +3,7 @@ import pandas as pd
 import numpy as np
 import os
 import sys
-try:
-    import cPickle as pickle
-except:
-    import pickle
-import gzip
+import pickle
 import chess
 from tqdm import tqdm
 import re
@@ -35,10 +31,11 @@ def clean_data(data, save_path):
 # SAN/LAN input to [board_states], [next_moves]
 def generate_training_data(games, save_path, overwrite=False):
 
-    if os.path.isfile(DATA_DIR) and not overwrite:
+    if os.path.isfile(save_path) and not overwrite:
         print("Reading pickle...")
         t0 = time.time()
-        df = pd.read_pickle(DATA_DIR + DF_PATH)
+        df = pd.read_pickle(save_path)
+        print(df.columns)
         t1 = time.time()
         print(f"Took {t1-t0}s")
 
@@ -62,7 +59,10 @@ def generate_training_data(games, save_path, overwrite=False):
                 board.push_san(move)
                 white_turn = not white_turn
 
-        df = pd.DataFrame({"board_states": board_states, "from_squares": from_squares, "to_squares": to_squares})
+        df = pd.DataFrame({"board_states": board_states, 
+                            "from_squares": from_squares, 
+                            "to_squares": to_squares,
+                            "pieces_moved": pieces_moved})
 
         print("Saving pickle...")
         t0 = time.time()
@@ -78,6 +78,5 @@ if __name__=="__main__":
     print("Parsing games...")
     parsed_sans, parsed_lans = clean_data(chess_data, DATA_DIR)
     print("Generating training data...")
-    training_data = generate_training_data(parsed_lans, DATA_DIR)
+    training_data = generate_training_data(parsed_lans, DATA_DIR + DF_PATH)
     print("Done.")
-    

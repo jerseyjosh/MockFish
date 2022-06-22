@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import chess
 import re
+from config import *
 
 # removes extraneous symbols
 def parse_san(moves):
@@ -17,7 +18,7 @@ def san_to_lan(moves):
   return lan[:-1]
 
 # Generate 6x8x8 board array
-def init_board(piece_values=[1, 3, 3, 5, 8, 1]): 
+def init_board(piece_values=PIECE_VALUES): 
     INIT_PAWNS = np.array([[0, 0, 0, 0, 0, 0, 0, 0],
                         [-piece_values[0] for i in range(8)],
                         [0, 0, 0, 0, 0, 0, 0, 0],
@@ -75,7 +76,7 @@ def init_board(piece_values=[1, 3, 3, 5, 8, 1]):
     INIT_BOARD = np.stack((INIT_PAWNS, INIT_KNIGHTS, INIT_BISHOPS, INIT_ROOKS, INIT_QUEENS, INIT_KINGS))
     return INIT_BOARD
 
-def fen_to_board(fen, piece_values=[1, 3, 3, 5, 8, 1], white_turn=True):
+def fen_to_board(fen, piece_values=PIECE_VALUES, white_turn=True):
     board = np.zeros((6, 8, 8), dtype="float32")
     new_fen = ''
     for char in fen:
