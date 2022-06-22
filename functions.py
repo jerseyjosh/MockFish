@@ -116,3 +116,8 @@ def fen_to_board(fen, piece_values=PIECE_VALUES, white_turn=True):
         return -np.flip(board, axis=(1, 2))
     else:
         return board
+
+def init_weights(m):
+    if isinstance(m, nn.Linear):
+        torch.nn.init.xavier_uniform(m.weight)
+        m.bias.data.fill_(0.01)
