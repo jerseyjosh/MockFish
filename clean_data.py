@@ -46,6 +46,7 @@ def generate_training_data(games, save_path, overwrite=False):
         board_states = []
         from_squares = []
         to_squares = []
+        pieces_moved = []
         for game in tqdm(games):
             board = chess.Board()
             white_turn=True
@@ -56,7 +57,8 @@ def generate_training_data(games, save_path, overwrite=False):
                 board_array = fen_to_board(board.board_fen(), piece_values=PIECE_VALUES, white_turn=white_turn)
                 board_states.append(board_array)
                 from_squares.append(from_square)
-                to_squares.append(str(piece_moved) + str(to_square))
+                to_squares.append(to_square)
+                pieces_moved.append(str(piece_moved))
                 board.push_san(move)
                 white_turn = not white_turn
 

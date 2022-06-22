@@ -115,16 +115,3 @@ def fen_to_board(fen, piece_values=[1, 3, 3, 5, 8, 1], white_turn=True):
         return -np.flip(board, axis=(1, 2))
     else:
         return board
-
-
-class ToTensor(object):
-    """Convert ndarrays in sample to Tensors."""
-    def __call__(self, sample):
-        board_state, from_square, to_square = sample[0], sample[1], sample[2]
-
-        # swap color axis because
-        # numpy image: H x W x C
-        # torch image: C x H x W
-        image = image.transpose((2, 0, 1))
-        return {'image': torch.from_numpy(image),
-                'landmarks': torch.from_numpy(landmarks)}
