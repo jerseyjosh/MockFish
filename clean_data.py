@@ -35,7 +35,6 @@ def generate_training_data(games, save_path, overwrite=False):
         print("Reading pickle...")
         t0 = time.time()
         df = pd.read_pickle(save_path)
-        print(df.columns)
         t1 = time.time()
         print(f"Took {t1-t0}s")
 

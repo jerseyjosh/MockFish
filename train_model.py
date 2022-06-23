@@ -26,8 +26,8 @@ def create_dataloaders():
     trainData, validData, testData = torch.utils.data.random_split(chessData, [train_size, valid_size, test_size])
 
     trainLoader = DataLoader(trainData, num_workers=NUM_WORKERS, batch_size=TRAIN_BATCH_SIZE, shuffle=True)
-    validLoader = DataLoader(validData, num_workers=NUM_WORKERS, batch_size=VALID_BATCH_SIZE, shuffle=True)
-    testLoader = DataLoader(testData, num_workers=NUM_WORKERS, batch_size=TEST_BATCH_SIZE, shuffle=True)
+    validLoader = DataLoader(validData, num_workers=NUM_WORKERS, batch_size=VALID_BATCH_SIZE, shuffle=False)
+    testLoader = DataLoader(testData, num_workers=NUM_WORKERS, batch_size=TEST_BATCH_SIZE, shuffle=False)
     return trainLoader, validLoader, testLoader
 
 
@@ -46,7 +46,7 @@ def mockfish_train(trainLoader, validLoader):
         current_epoch = x+1
         print(f"Epoch {x+1}...")
         trainLoss = 0.0
-        mockfish.train()     
+        mockfish.train()
         for data, label,_,_ in tqdm(trainLoader):
             data, label = data.to(DEVICE), label.to(DEVICE)
             optimizer.zero_grad()
@@ -57,19 +57,20 @@ def mockfish_train(trainLoader, validLoader):
             trainLoss += loss.item()
         
         validLoss = 0.0
-        mockfish.eval()  
-        num_correct = 0
-        num_samples = 0
-        print("Validating...") 
-        with torch.no_grad(): 
+        mockfish.eval()     
+        with torch.no_grad():
+            num_correct = 0.0
+            num_samples = 0.0
+            print("Validating...") 
             for data, label,_,_ in tqdm(validLoader):
                 data, label = data.to(DEVICE), label.to(DEVICE)
                 target = mockfish(data)
-                _,predictions = target.max(1)
+                _,predictions = torch.max(target.data, 1)
                 num_correct += (predictions == label).sum()
                 num_samples += predictions.size(0)
                 loss = criterion(target,label)
                 validLoss += loss.item()
+
         accuracy = num_correct / num_samples
 
         avgTrainLoss = trainLoss / len(trainLoader)
@@ -82,6 +83,7 @@ def mockfish_train(trainLoader, validLoader):
                 Validation loss: {avgValidLoss} \t\t Validation accuracy: {100* accuracy:.2}%')
 
         if avgValidLoss > minValidLoss:
+            # has validLoss failed to decrease twice in a row?
             bailCounter += 1
             if bailCounter >1:
                 break
@@ -98,6 +100,7 @@ def mockfish_train(trainLoader, validLoader):
 
 
 def mockfish_test(model, testLoader):
+
     num_correct = 0
     num_samples = 0
     model.eval()
@@ -106,7 +109,7 @@ def mockfish_test(model, testLoader):
             data, label = data.to(DEVICE), label.to(DEVICE)
             scores = model(data)
             _, predictions = scores.max(1)
-            num_correct += (predictions == y).sum()
+            num_correct += (predictions == label).sum()
             num_samples += predictions.size(0)
     accuracy = float(num_correct) / float(num_samples)
     print(f'Got {num_correct} / {num_samples} with accuracy {(100 * num_correct/num_samples) :.2f}')
@@ -119,6 +122,8 @@ if __name__=="__main__":
     print(f"Using device: {DEVICE}")
     print(f"num_workers: {NUM_WORKERS}")
     trainLoader, validLoader, testLoader = create_dataloaders()
-    model = mockfish_train(trainLoader, validLoader)
+    #model = mockfish_train(trainLoader, validLoader)
+    model = Mockfish(6, 64).to(DEVICE)
+    model.load_state_dict(torch.load(MODELS_DIR + "2fc_4e_0.001lr.pth"))
     accuracy = mockfish_test(model, testLoader)
     print(f"Test Accuracy: {accuracy}")
