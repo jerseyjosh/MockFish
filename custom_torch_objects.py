@@ -29,16 +29,16 @@ class ChessDataset(Dataset):
     
 
 class Mockfish(nn.Module):
-    def __init__(self, numChannels, classes):
+    def __init__(self, numChannels, classes, init_weights=None):
         super(Mockfish, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=6, out_channels=96, kernel_size=(3, 3), padding=(1, 1))
-        #torch.nn.init.xavier_uniform_(self.conv1.weight)
+        torch.nn.init.xavier_uniform_(self.conv1.weight)
         self.conv2 = nn.Conv2d(in_channels=96, out_channels=256, kernel_size=(3, 3), padding=(1, 1))
-        #torch.nn.init.xavier_uniform_(self.conv2.weight)
+        torch.nn.init.xavier_uniform_(self.conv2.weight)
         self.conv3 = nn.Conv2d(in_channels=256, out_channels=384, kernel_size=(3, 3), padding=(1, 1))
-        #torch.nn.init.xavier_uniform_(self.conv3.weight)
+        torch.nn.init.xavier_uniform_(self.conv3.weight)
         self.fc1 = nn.Linear(in_features=24576, out_features=classes)
-        #torch.nn.init.xavier_uniform_(self.fc1.weight)
+        torch.nn.init.xavier_uniform_(self.fc1.weight)
 
 
     def forward(self, x):
