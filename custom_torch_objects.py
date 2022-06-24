@@ -23,7 +23,7 @@ class ChessDataset(Dataset):
         to_square = self.df.to_squares[idx]
         piece_moved = self.df.pieces_moved[idx]
         if self.transforms:
-            # Rever toTensor HWC->CHW transformation as this is already in data
+            # Reverse toTensor HWC->CHW transformation as this is already in data
             board_state = self.transforms(board_state).permute((1, 2, 0)).contiguous()
         return board_state, from_square, to_square, piece_moved
     
