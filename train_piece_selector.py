@@ -8,7 +8,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 import torch.nn.functional as F
 from torch.optim import Adam
-from custom_torch_objects import ChessDataset, Mockfish
+from custom_torch_objects import *
 from config import *
 
 def create_dataloaders():
@@ -32,9 +32,9 @@ def create_dataloaders():
     return trainLoader, validLoader, testLoader
 
 
-def mockfish_train(trainLoader, validLoader):
+def mockfish_train(trainLoader, validLoader, Model, modelname: str):
 
-    mockfish = Mockfish(6, 64).to(DEVICE)
+    mockfish = Model(6, 64).to(DEVICE)
     optimizer = Adam(mockfish.parameters(), lr=LEARNING_RATE)
     criterion = nn.CrossEntropyLoss()
 
@@ -42,6 +42,7 @@ def mockfish_train(trainLoader, validLoader):
     validLosses = []
     randomLosses = []
     iterations = []
+    running_iterations = 0
     
     validAccuracies = []
     randomAccuracies = []
@@ -55,6 +56,7 @@ def mockfish_train(trainLoader, validLoader):
         trainLoss = 0.0
         mockfish.train()
         for batch,(data, label,_,_) in enumerate(tqdm(trainLoader)):
+            running_iterations += batch+1
             data, label = data.to(DEVICE), label.to(DEVICE)
             optimizer.zero_grad()
             target = mockfish(data)
@@ -77,8 +79,8 @@ def mockfish_train(trainLoader, validLoader):
                         
                         vdata, vlabel = vdata.to(DEVICE), vlabel.to(DEVICE)
                         vtarget = mockfish(vdata)
-                        _,vpredictions = torch.max(vtarget.data, 1)
 
+                        _,vpredictions = torch.max(vtarget.data, 1)
                         vrandom_predictions = torch.randint(64, [len(vdata)]).to(DEVICE)
                         vrandom_probs = torch.Tensor(len(vdata) * [[1/64] * 64]).to(DEVICE)
 
@@ -88,6 +90,7 @@ def mockfish_train(trainLoader, validLoader):
 
                         vloss = criterion(vtarget,vlabel)
                         vrandom_loss = criterion(vrandom_probs, vlabel)
+
                         validLoss += vloss.item()
                         vrandomLoss += vrandom_loss.item()
 
@@ -95,10 +98,10 @@ def mockfish_train(trainLoader, validLoader):
                 avgValidLoss = validLoss / len(validLoader)
                 avgRandomLoss = vrandomLoss / len(validLoader)
 
-                vaccuracy = vnum_correct / vnum_samples
-                vrandom_accuracy = vrandom_num_correct / vnum_samples
+                vaccuracy = float(vnum_correct) / float(vnum_samples)
+                vrandom_accuracy = float(vrandom_num_correct) / float(vnum_samples)
 
-                iterations.append((batch+1) * TRAIN_BATCH_SIZE)
+                iterations.append(running_iterations)
                 trainLosses.append(avgTrainLoss)
                 validLosses.append(avgValidLoss)
                 randomLosses.append(avgRandomLoss)
@@ -106,34 +109,32 @@ def mockfish_train(trainLoader, validLoader):
                 validAccuracies.append(vaccuracy)
                 randomAccuracies.append(vrandom_accuracy)
 
-                print(f"Iteration {(batch+1) * TRAIN_BATCH_SIZE}")
+                print(f"Iteration {batch+1}")
                 print(f"Training loss: {avgTrainLoss} \t\t Validation loss: {avgValidLoss} \t\t Random loss: {avgRandomLoss}")
-                print(f"Validation accuracy: {100 * vaccuracy :.2}% \t\t \Random Accuracy: {100 * vrandom_accuracy :.2f}%")
+                print(f"Validation accuracy: {100 * vaccuracy :.2}% \t\t Random Accuracy: {100 * vrandom_accuracy :.2f}%")
 
                 if avgValidLoss < minValidLoss:
                     minValidLoss = avgValidLoss
+                    print("Bail counter reset.")
                     bailCounter = 0
-                    torch.save(mockfish.state_dict(), MODELS_DIR + f"fullmodel_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr.pth")
 
                 else:
                     bailCounter += 1
+                    print(f"Validation loss increased, bail counter: {bailCounter}")
                     if bailCounter > 2:
                         break
+                    
         # for/else block to break outer loop when vloss stops decreasing
         else:
             continue
+        torch.save(mockfish.state_dict(), MODELS_DIR + modelname + f"_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr.pth")
         break
 
+    losses = pd.DataFrame({"iterations": iterations, "trainLosses": trainLosses, "validLosses": validLosses, "randomLosses": randomLosses})
+    accuracies = pd.DataFrame({"iterations": iterations, "validAccuracies": validAccuracies, "randomAccuracies": randomAccuracies})
 
-    losses = pd.DataFrame(index=iterations, data={"trainLosses": trainLosses, 
-                                                    "validLosses": validLosses,
-                                                    "randomLosses": randomLosses})
-
-    losses.to_csv(MODELS_DIR + f"fullmodel_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr_losses.csv", index=True)
-
-    accuracies = pd.DataFrame(index=iterations, data={"validAccuracies": validAccuracies, 
-                                                        "randomAccuracies": {randomAccuracies}})
-    accuracies.to_csv(MODELS_DIR + f"fullmodel_{current_epoch}e_{LEARNING_RATE}lr_accuracies.csv", index=False)
+    losses.to_csv(MODELS_DIR + modelname + f"_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr_losses.csv", index=False)
+    accuracies.to_csv(MODELS_DIR + modelname + f"_{current_epoch}e_{LEARNING_RATE}lr_accuracies.csv", index=False)
 
     return mockfish
 
@@ -150,6 +151,9 @@ def mockfish_test(model, testLoader):
             _, predictions = scores.max(1)
             num_correct += (predictions == label).sum()
             num_samples += predictions.size(0)
+            ###
+            # TODO: IMPLEMENT MULTICLASS ACCURACY
+            ###
             #for i in range(64):
                  #class_accuracies[i] += ((predictions == label) * (label == i)).float() / (max(label == i).sum(), 1)
             #class_accuracies /= (b+1)
@@ -165,7 +169,8 @@ if __name__=="__main__":
     print(f"Using device: {DEVICE}")
     print(f"num_workers: {NUM_WORKERS}")
     trainLoader, validLoader, testLoader = create_dataloaders()
-    model = mockfish_train(trainLoader, validLoader)
+    model = mockfish_train(trainLoader, validLoader, Mockfish, "mockfish")
     #model = Mockfish(6, 64).to(DEVICE)
     #model.load_state_dict(torch.load(MODELS_DIR + "fullmodel_1e_0.0015lr.pth"))
     accuracy, class_accuracies = mockfish_test(model, testLoader)
+    print(f"Test Accuracy: {accuracy*100 :.2f}%")
