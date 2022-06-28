@@ -2,7 +2,10 @@ import numpy as np
 import pandas as pd
 import chess
 import re
+import time
 from config import *
+from custom_torch_objects import ChessDataset
+from torch.utils.data import DataLoader
 
 # removes extraneous symbols
 def parse_san(moves):
@@ -76,6 +79,7 @@ def init_board(piece_values=PIECE_VALUES):
     INIT_BOARD = np.stack((INIT_PAWNS, INIT_KNIGHTS, INIT_BISHOPS, INIT_ROOKS, INIT_QUEENS, INIT_KINGS))
     return INIT_BOARD
 
+# converts fen representation to board object
 def fen_to_board(fen, piece_values=PIECE_VALUES, white_turn=True):
     board = np.zeros((6, 8, 8), dtype="float32")
     new_fen = ''
@@ -117,7 +121,27 @@ def fen_to_board(fen, piece_values=PIECE_VALUES, white_turn=True):
     else:
         return board
 
-def init_weights(m):
-    if isinstance(m, nn.Linear):
-        torch.nn.init.xavier_uniform(m.weight)
-        m.bias.data.fill_(0.01)
+
+def create_dataloaders(piece=None):
+    if piece is not None:
+        print(f"Training '{piece}' network...")
+    else:
+        print("Training piece selector network...")
+    print("Loading dataset...")
+    t0=time.time()
+    chessData = ChessDataset(DATA_DIR, DF_PATH, piece=piece)
+    t1=time.time()
+    print(f"Took {t1-t0:.2f}s")
+
+    print("Generating train/test/validation split...")
+    train_size = int(TRAIN_SIZE * len(chessData))
+    valid_size = int(VALID_SIZE * len(chessData))
+    test_size = len(chessData) - train_size - valid_size
+
+    trainData, validData, testData = torch.utils.data.random_split(chessData, [train_size, valid_size, test_size], 
+                                                                   generator=torch.Generator().manual_seed(1))
+
+    trainLoader = DataLoader(trainData, num_workers=NUM_WORKERS, batch_size=TRAIN_BATCH_SIZE, shuffle=True)
+    validLoader = DataLoader(validData, num_workers=NUM_WORKERS, batch_size=VALID_BATCH_SIZE, shuffle=False)
+    testLoader = DataLoader(testData, num_workers=NUM_WORKERS, batch_size=TEST_BATCH_SIZE, shuffle=False)
+    return trainLoader, validLoader, testLoader

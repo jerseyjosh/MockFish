@@ -1,52 +1,27 @@
-import pickle
 from tqdm import tqdm
-import sys
-import time
 import numpy as np
 import pandas as pd
+import copy
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset
 import torch.nn.functional as F
 from torch.optim import Adam
 from custom_torch_objects import *
 from config import *
 from argparse import ArgumentParser
+from functions import *
 
 # Add argparse for training piece selector vs piece networks
 parser = ArgumentParser()
 parser.add_argument("-p", "--piece", help="choose the piece to train network on, if none is given then piece selector network is trained.")
 args = parser.parse_args()
 
-PIECE = args.piece.lower()
-assert len(PIECE)==1, f"Expected length 1, got {len(PIECE)}"
-assert PIECE.lower() in ['p', 'b', 'n', 'r', 'q', 'k'], f"Expected one of ['p', 'b', 'n', 'r', 'q', 'k'], got '{PIECE}'"
+PIECE = args.piece
+if PIECE is not None:
+    PIECE = PIECE.lower()
+assert PIECE in [None, 'p', 'b', 'n', 'r', 'q', 'k', 'all'], f"Expected one of [None, 'p', 'b', 'n', 'r', 'q', 'k', 'all'], got '{PIECE}'"
 
-def create_dataloaders(piece=PIECE):
-    if piece is not None:
-        print(f"Training '{PIECE}' network...")
-    else:
-        print("Training piece selector network...")
-    print("Loading dataset...")
-    t0=time.time()
-    chessData = ChessDataset(DATA_DIR, DF_PATH, piece=piece)
-    t1=time.time()
-    print(f"Took {t1-t0:.2f}s")
-
-    print("Generating train/test/validation split...")
-    train_size = int(TRAIN_SIZE * len(chessData))
-    valid_size = int(VALID_SIZE * len(chessData))
-    test_size = len(chessData) - train_size - valid_size
-
-    trainData, validData, testData = torch.utils.data.random_split(chessData, [train_size, valid_size, test_size], 
-                                                                   generator=torch.Generator().manual_seed(1))
-
-    trainLoader = DataLoader(trainData, num_workers=NUM_WORKERS, batch_size=TRAIN_BATCH_SIZE, shuffle=True)
-    validLoader = DataLoader(validData, num_workers=NUM_WORKERS, batch_size=VALID_BATCH_SIZE, shuffle=False)
-    testLoader = DataLoader(testData, num_workers=NUM_WORKERS, batch_size=TEST_BATCH_SIZE, shuffle=False)
-    return trainLoader, validLoader, testLoader
-
-
+# TODO: fix saving most accurate model instead of most recent
 def mockfish_train(trainLoader, validLoader, Model, modelname: str):
 
     mockfish = Model(6, 64).to(DEVICE)
@@ -67,16 +42,19 @@ def mockfish_train(trainLoader, validLoader, Model, modelname: str):
 
     for x in range(EPOCHS):
         current_epoch = x+1
-        print(f"Epoch {x+1}...")
+
+        print(f"Epoch {current_epoch}...")
         trainLoss = 0.0
         mockfish.train()
         for batch,(data, from_square, to_square,_) in enumerate(tqdm(trainLoader)): 
-            # TODO: THIS NEEDS TO BE MADE DYNAMIC
+            current_batch = batch+1
+
+            running_iterations += 1
             # set label by whether training piece selector or piece network
             label = from_square if PIECE is None else to_square
             # save (data, label) to device
             data, label = data.to(DEVICE), label.to(DEVICE)
-            running_iterations += batch+1
+
             # training
             optimizer.zero_grad()
             target = mockfish(data)
@@ -135,6 +113,7 @@ def mockfish_train(trainLoader, validLoader, Model, modelname: str):
                 print(f"Validation accuracy: {100 * vaccuracy :.2}% \t\t Random Accuracy: {100 * vrandom_accuracy :.2f}%")
 
                 if avgValidLoss < minValidLoss:
+                    best_model = copy.deepcopy(mockfish)
                     minValidLoss = avgValidLoss
                     print("Bail counter reset.")
                     bailCounter = 0
@@ -148,56 +127,35 @@ def mockfish_train(trainLoader, validLoader, Model, modelname: str):
         # for/else block to break outer loop when vloss stops decreasing
         else:
             continue
-        if PIECE is not None:
-            torch.save(mockfish.state_dict(), MODELS_DIR + modelname + f"_{PIECE}_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr.pth")
-        else:
-            torch.save(mockfish.state_dict(), MODELS_DIR + modelname + f"_pieceselector_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr.pth")
         break
+
+    # save best model
+    if PIECE is not None:
+        torch.save(best_model.state_dict(), MODELS_DIR + modelname + f"_{PIECE}_{current_epoch}e_{current_batch}b_{LEARNING_RATE}lr.pth")
+    else:
+        torch.save(best_model.state_dict(), MODELS_DIR + modelname + f"_selector_{current_epoch}e_{current_batch}b_{LEARNING_RATE}lr.pth")
+
 
     losses = pd.DataFrame({"iterations": iterations, "trainLosses": trainLosses, "validLosses": validLosses, "randomLosses": randomLosses})
     accuracies = pd.DataFrame({"iterations": iterations, "validAccuracies": validAccuracies, "randomAccuracies": randomAccuracies})
 
     if PIECE is not None:
-        losses.to_csv(MODELS_DIR + modelname + f"_{PIECE}_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr_losses.csv", index=False)
-        accuracies.to_csv(MODELS_DIR + modelname + f"_{PIECE}_{current_epoch}e_{LEARNING_RATE}lr_accuracies.csv", index=False)
+        losses.to_csv(RESULTS_DIR + modelname + f"_{PIECE}_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr_losses.csv", index=False)
+        accuracies.to_csv(RESULTS_DIR + modelname + f"_{PIECE}_{current_epoch}e_{LEARNING_RATE}lr_accuracies.csv", index=False)
     else:
-        losses.to_csv(MODELS_DIR + modelname + f"_pieceselector_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr_losses.csv", index=False)
-        accuracies.to_csv(MODELS_DIR + modelname + f"_pieceselector_{current_epoch}e_{LEARNING_RATE}lr_accuracies.csv", index=False)
+        losses.to_csv(RESULTS_DIR + modelname + f"_pieceselector_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr_losses.csv", index=False)
+        accuracies.to_csv(RESULTS_DIR + modelname + f"_pieceselector_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr_accuracies.csv", index=False)
     return mockfish
-
-
-def mockfish_test(model, testLoader):
-    num_correct = 0.0
-    num_samples = 0.0
-    class_accuracies = [0 for _ in range(64)]
-    model.eval()
-    with torch.no_grad():
-        for b, (data, label,_,_) in enumerate(tqdm(testLoader)):
-            data, label = data.to(DEVICE), label.to(DEVICE)
-            scores = model(data)
-            _, predictions = scores.max(1)
-            num_correct += (predictions == label).sum()
-            num_samples += predictions.size(0)
-            ###
-            # TODO: IMPLEMENT MULTICLASS ACCURACY, maybe visualisation
-            ###
-            #for i in range(64):
-                 #class_accuracies[i] += ((predictions == label) * (label == i)).float() / (max(label == i).sum(), 1)
-            #class_accuracies /= (b+1)
-    accuracy = num_correct/num_samples
-
-    print(f'Got {num_correct} / {num_samples} with accuracy {(100 * accuracy) :.2f}')
-    model.train()
-
-    return accuracy, class_accuracies
 
 
 if __name__=="__main__":
     print(f"Using device: {DEVICE}")
     print(f"num_workers: {NUM_WORKERS}")
-    trainLoader, validLoader, testLoader = create_dataloaders(piece='p')
-    model = mockfish_train(trainLoader, validLoader, Mockfish, "mockfish")
-    #model = Mockfish(6, 64).to(DEVICE)
-    #model.load_state_dict(torch.load(MODELS_DIR + "fullmodel_1e_0.0015lr.pth"))
-    accuracy, class_accuracies = mockfish_test(model, testLoader)
-    print(f"Test Accuracy: {accuracy*100 :.2f}%")
+    if PIECE == 'all':
+        print("Training all networks...")
+        for p in [None, 'p', 'b', 'n', 'r', 'q', 'k']:
+            trainLoader, validLoader, testLoader = create_dataloaders(piece=p)
+            model = mockfish_train(trainLoader, validLoader, Mockfish, "mockfish")
+    else:
+        trainLoader, validLoader, testLoader = create_dataloaders(piece=PIECE)
+        model = mockfish_train(trainLoader, validLoader, Mockfish, "mockfish")
