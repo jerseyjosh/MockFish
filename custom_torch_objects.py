@@ -7,13 +7,12 @@ import torch.nn.functional as F
 from config import *
 
 class ChessDataset(Dataset):
-    def __init__(self, root, path, transforms=ToTensor(), pieces=None):
+    def __init__(self, root, path, transforms=ToTensor(), piece=None):
         self.path = path
         self.transforms=transforms
         self.df = pd.read_pickle(DATA_DIR + DF_PATH) 
-        if pieces is not None:
-            self.df = self.df[self.df.pieces_moved.str.lower().isin(pieces)]
-
+        if piece is not None:
+            self.df = self.df[self.df.pieces_moved.str.lower()==piece].reset_index()
     def __len__(self):
         return len(self.df)
 
@@ -54,7 +53,7 @@ class Mockfish(nn.Module):
         return x
 
     
-
+"""
 class Mockfish3fc(nn.Module):
     def __init__(self, numChannels, classes, init_weights=None):
         super(Mockfish, self).__init__()
@@ -79,4 +78,5 @@ class Mockfish3fc(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
+"""
 
