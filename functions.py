@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import chess
 import re
+import os
 import time
 from config import *
 from custom_torch_objects import ChessDataset
@@ -121,27 +122,9 @@ def fen_to_board(fen, piece_values=PIECE_VALUES, white_turn=True):
     else:
         return board
 
-
-def create_dataloaders(piece=None):
-    if piece is not None:
-        print(f"Training '{piece}' network...")
-    else:
-        print("Training piece selector network...")
-    print("Loading dataset...")
-    t0=time.time()
-    chessData = ChessDataset(DATA_DIR, DF_PATH, piece=piece)
-    t1=time.time()
-    print(f"Took {t1-t0:.2f}s")
-
-    print("Generating train/test/validation split...")
-    train_size = int(TRAIN_SIZE * len(chessData))
-    valid_size = int(VALID_SIZE * len(chessData))
-    test_size = len(chessData) - train_size - valid_size
-
-    trainData, validData, testData = torch.utils.data.random_split(chessData, [train_size, valid_size, test_size], 
-                                                                   generator=torch.Generator().manual_seed(1))
-
-    trainLoader = DataLoader(trainData, num_workers=NUM_WORKERS, batch_size=TRAIN_BATCH_SIZE, shuffle=True)
-    validLoader = DataLoader(validData, num_workers=NUM_WORKERS, batch_size=VALID_BATCH_SIZE, shuffle=False)
-    testLoader = DataLoader(testData, num_workers=NUM_WORKERS, batch_size=TEST_BATCH_SIZE, shuffle=False)
-    return trainLoader, validLoader, testLoader
+# get model path for specific piece
+def get_model_path(dir, piece):
+    pattern = f"*_{piece}_*.pth"
+    for f in os.listdir(dir):
+        if pattern.match(f):
+            return dir + f
