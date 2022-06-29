@@ -7,11 +7,11 @@ import torch.nn.functional as F
 from config import *
 
 class ChessDataset(Dataset):
-    def __init__(self, root, path, transforms=ToTensor(), target_piece=None):
+    def __init__(self, root, path, target_piece, transforms=ToTensor()):
         self.path = path
         self.transforms=transforms
         self.df = pd.read_pickle(DATA_DIR + DF_PATH) 
-        if target_piece is not None:
+        if target_piece != 'selector':
             self.df = self.df[self.df.pieces_moved.str.lower()==target_piece].reset_index()
 
     def __len__(self):

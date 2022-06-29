@@ -2,7 +2,6 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import copy
-import datetime
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -14,22 +13,19 @@ from functions import *
 
 # Add argparse for training piece selector vs piece networks
 parser = ArgumentParser()
-parser.add_argument("-p", "--piece", help="choose the piece to train network on, if none is given then piece selector network is trained.")
+parser.add_argument("piece", 
+                    help="choose the piece to train network on.")
 args = parser.parse_args()
 
-PIECE = args.piece
-if PIECE is not None:
-    PIECE = PIECE.lower()
-assert PIECE in [None, 'p', 'b', 'n', 'r', 'q', 'k', 'all'], f"Expected one of [None, 'p', 'b', 'n', 'r', 'q', 'k', 'all'], got '{PIECE}'"
-
+INPUT = args.piece
+if INPUT is not None:
+    INPUT = INPUT.lower()
+assert INPUT in ['selector', 'p', 'b', 'n', 'r', 'q', 'k', 'all'], f"Expected one of ['selector', 'p', 'b', 'n', 'r', 'q', 'k', 'all'], got '{INPUT}'"
 
 # create dataloaders for specific pieces
 # PROBLEM IS IN DATALOADERS OR DATASET
-def create_dataloaders(target_piece=None):
-    if target_piece is not None:
-        print(f"Training '{target_piece}' network...")
-    else:
-        print("Training piece selector network...")
+def create_dataloaders(target_piece):
+    print(f"Training {target_piece} network...")
     print("Loading dataset...")
     t0=time.time()
     chessData = ChessDataset(DATA_DIR, DF_PATH, target_piece=target_piece)
@@ -52,7 +48,7 @@ def create_dataloaders(target_piece=None):
 
 
 
-def mockfish_train(trainLoader, validLoader, ModelClass, save_dir):
+def mockfish_train(trainLoader, validLoader, ModelClass, save_dir, target_piece='selector'):
 
     model = ModelClass(6, 64).to(DEVICE)
     print(model)
@@ -83,7 +79,7 @@ def mockfish_train(trainLoader, validLoader, ModelClass, save_dir):
             running_iterations += 1
 
             # set label by whether training piece selector or piece network
-            label = from_square if PIECE is None else to_square
+            label = from_square if target_piece=='selector' else to_square
             # save (data, label) to device
             data, label = data.to(DEVICE), label.to(DEVICE)
 
@@ -97,7 +93,7 @@ def mockfish_train(trainLoader, validLoader, ModelClass, save_dir):
 
             # Validate 5 times per epoch
             VALIDATION_EPOCHS = len(trainLoader) // 5
-            if (batch+1) % 2000 == 0:
+            if (batch+1) % VALIDATION_EPOCHS == 0:
                 validLoss = 0.0
                 vrandomLoss = 0.0
                 model.eval()     
@@ -107,7 +103,7 @@ def mockfish_train(trainLoader, validLoader, ModelClass, save_dir):
                     vnum_samples = 0.0
                     print("Validating...") 
                     for vdata, vfrom_square, vto_square,_ in tqdm(validLoader):
-                        vlabel = vfrom_square if PIECE is None else vto_square
+                        vlabel = vfrom_square if target_piece=='selector' else vto_square
                         vdata, vlabel = vdata.to(DEVICE), vlabel.to(DEVICE)
                         vtarget = model(vdata)
 
@@ -144,8 +140,6 @@ def mockfish_train(trainLoader, validLoader, ModelClass, save_dir):
                 print(f"Training loss: {avgTrainLoss} \t\t Validation loss: {avgValidLoss} \t\t Random loss: {avgRandomLoss}")
                 print(f"Validation accuracy: {100 * vaccuracy :.2}% \t\t Random Accuracy: {100 * vrandom_accuracy :.2f}%")
 
-                quit()
-
                 if avgValidLoss < minValidLoss:
                     best_model = copy.deepcopy(model)
                     minValidLoss = avgValidLoss
@@ -164,35 +158,23 @@ def mockfish_train(trainLoader, validLoader, ModelClass, save_dir):
         break
 
     # save best model
-    if PIECE is not None:
-        torch.save(best_model.state_dict(), save_dir + ModelClass._get_name() + f"_{PIECE}_{current_epoch}e_{current_batch}b_{LEARNING_RATE}lr.pth")
-    else:
-        torch.save(best_model.state_dict(), save_dir + ModelClass._get_name() + f"_selector_{current_epoch}e_{current_batch}b_{LEARNING_RATE}lr.pth")
+    torch.save(best_model.state_dict(), save_dir + ModelClass._get_name() + f"_{target_piece}_{current_epoch}e_{current_batch}b_{LEARNING_RATE}lr.pth")
 
-
+    # save losses and accuracies
     losses = pd.DataFrame({"iterations": iterations, "trainLosses": trainLosses, "validLosses": validLosses, "randomLosses": randomLosses})
     accuracies = pd.DataFrame({"iterations": iterations, "validAccuracies": validAccuracies, "randomAccuracies": randomAccuracies})
-
-    if PIECE is not None:
-        losses.to_csv(RESULTS_DIR + ModelClass._get_name() + f"_{PIECE}_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr_losses.csv", index=False)
-        accuracies.to_csv(RESULTS_DIR + ModelClass._get_name() + f"_{PIECE}_{current_epoch}e_{LEARNING_RATE}lr_accuracies.csv", index=False)
-    else:
-        losses.to_csv(RESULTS_DIR + ModelClass._get_name() + f"_pieceselector_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr_losses.csv", index=False)
-        accuracies.to_csv(RESULTS_DIR + ModelClass._get_name() + f"_pieceselector_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr_accuracies.csv", index=False)
-
+    losses.to_csv(RESULTS_DIR + ModelClass._get_name() + f"_{target_piece}_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr_losses.csv", index=False)
+    accuracies.to_csv(RESULTS_DIR + ModelClass._get_name() + f"_{target_piece}_{current_epoch}e_{LEARNING_RATE}lr_accuracies.csv", index=False)
 
 if __name__=="__main__":
     print(f"Using device: {DEVICE}")
     print(f"num_workers: {NUM_WORKERS}") 
 
-    trainLoader, validLoader, testLoader = create_dataloaders(piece=None)
-    mockfish_train(trainLoader, validLoader, MockfishBaseline, save_dir = MODELS_DIR)
-    
-    if PIECE == 'all':
+    if INPUT == 'all':
         print("Training all networks...")
-        for p in [None, 'p', 'b', 'n', 'r', 'q', 'k']:
-            trainLoader, validLoader, testLoader = create_dataloaders(piece=p)
-            mockfish_train(trainLoader, validLoader, MockfishBaseline, save_dir = MODELS_DIR)
+        for p in ['selector', 'p', 'b', 'n', 'r', 'q', 'k']:
+            trainLoader, validLoader, testLoader = create_dataloaders(target_piece=p)
+            mockfish_train(trainLoader, validLoader, MockfishBaseline, save_dir=MODELS_DIR, target_piece=p)
     else:
-        trainLoader, validLoader, testLoader = create_dataloaders(piece=PIECE)
-        mockfish_train(trainLoader, validLoader, MockfishBaseline, save_dir = MODELS_DIR)
+        trainLoader, validLoader, testLoader = create_dataloaders(target_piece=INPUT)
+        mockfish_train(trainLoader, validLoader, MockfishBaseline, save_dir = MODELS_DIR, target_piece=INPUT)
