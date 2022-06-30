@@ -158,13 +158,13 @@ def mockfish_train(trainLoader, validLoader, ModelClass, save_dir, target_piece=
         break
 
     # save best model
-    torch.save(best_model.state_dict(), save_dir + ModelClass._get_name() + f"_{target_piece}_{current_epoch}e_{current_batch}b_{LEARNING_RATE}lr.pth")
+    torch.save(best_model.state_dict(), save_dir + model._get_name() + f"_{target_piece}_{current_epoch}e_{current_batch}b_{LEARNING_RATE}lr.pth")
 
     # save losses and accuracies
     losses = pd.DataFrame({"iterations": iterations, "trainLosses": trainLosses, "validLosses": validLosses, "randomLosses": randomLosses})
     accuracies = pd.DataFrame({"iterations": iterations, "validAccuracies": validAccuracies, "randomAccuracies": randomAccuracies})
-    losses.to_csv(RESULTS_DIR + ModelClass._get_name() + f"_{target_piece}_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr_losses.csv", index=False)
-    accuracies.to_csv(RESULTS_DIR + ModelClass._get_name() + f"_{target_piece}_{current_epoch}e_{LEARNING_RATE}lr_accuracies.csv", index=False)
+    losses.to_csv(RESULTS_DIR + model._get_name() + f"_{target_piece}_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr_losses.csv", index=False)
+    accuracies.to_csv(RESULTS_DIR + model._get_name() + f"_{target_piece}_{current_epoch}e_{LEARNING_RATE}lr_accuracies.csv", index=False)
 
 if __name__=="__main__":
     print(f"Using device: {DEVICE}")
