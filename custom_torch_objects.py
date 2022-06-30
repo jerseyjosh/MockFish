@@ -31,9 +31,9 @@ class ChessDataset(Dataset):
 
 
 # no weight initialisation -> 34% piece selector accuracy
-class MockfishBaseline(nn.Module):
+class Mockfish(nn.Module):
     def __init__(self, numChannels, classes, init_weights=None):
-        super(MockfishBaseline, self).__init__()
+        super(Mockfish, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=6, out_channels=96, kernel_size=(3, 3), padding=(1, 1))
         torch.nn.init.xavier_uniform_(self.conv1.weight)
         self.conv2 = nn.Conv2d(in_channels=96, out_channels=256, kernel_size=(3, 3), padding=(1, 1))

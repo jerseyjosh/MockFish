@@ -124,7 +124,7 @@ def fen_to_board(fen, piece_values=PIECE_VALUES, white_turn=True):
 
 # get model path for specific piece
 def get_model_path(dir, piece):
-    pattern = f"*_{piece}_*.pth"
+    pattern = f"_{piece}_"
     for f in os.listdir(dir):
-        if pattern.match(f):
+        if re.search(pattern, f):
             return dir + f

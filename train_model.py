@@ -174,7 +174,7 @@ if __name__=="__main__":
         print("Training all networks...")
         for p in ['selector', 'p', 'b', 'n', 'r', 'q', 'k']:
             trainLoader, validLoader, testLoader = create_dataloaders(target_piece=p)
-            mockfish_train(trainLoader, validLoader, MockfishBaseline, save_dir=MODELS_DIR, target_piece=p)
+            mockfish_train(trainLoader, validLoader, Mockfish, save_dir=MODELS_DIR, target_piece=p)
     else:
         trainLoader, validLoader, testLoader = create_dataloaders(target_piece=INPUT)
-        mockfish_train(trainLoader, validLoader, MockfishBaseline, save_dir = MODELS_DIR, target_piece=INPUT)
+        mockfish_train(trainLoader, validLoader, Mockfish, save_dir = MODELS_DIR, target_piece=INPUT)
