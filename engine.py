@@ -1,11 +1,14 @@
 from custom_torch_objects import Mockfish
+import torch.nn.functional as F
 import torch
 import chess
+import chess.svg
 from config import *
 from functions import *
 
 class Engine():
     def __init__(self, selector_path, p_path, b_path, n_path, r_path, q_path, k_path):
+
         self.selector = Mockfish(6, 64)
         self.selector.load_state_dict(torch.load(selector_path))
         self.selector.eval()
@@ -34,9 +37,82 @@ class Engine():
         self.king.load_state_dict(torch.load(k_path))
         self.king.eval()
 
+
+    def play(self):
+        board = chess.Board()
+        while not board.is_game_over():
+            print(board)
+            move = input("Your move: ")
+            board.push_san(move)
+            fen = board.fen()
+            from_square, piece_moved = self.get_from_square(fen=fen, white_turn=board.turn)
+            to_square = self.get_to_square(fen=fen, white_turn=board.turn, from_square=from_square, piece_moved=piece_moved)
+
+            board.push(chess.Move(from_square, to_square))
+            print("-       -")
+            print("-       -")
+
+
+    def get_piece_model(self, piece_moved):
+        piece_moved = str(piece_moved).lower()
+        if piece_moved == 'p':
+            return self.pawn
+        elif piece_moved == 'b':
+            return self.bishop
+        elif piece_moved == 'n':
+            return self.knight
+        elif piece_moved == 'r':
+            return self.rook
+        elif piece_moved == 'q':
+            return self.queen
+        elif piece_moved == 'k':
+            return self.king
+        else:
+            print("invalid input")
+
+
+    def get_from_square(self, fen, white_turn):
+
+        board_state = torch.from_numpy(fen_to_board(fen=fen, white_turn=white_turn))[None, :]
+        board = chess.Board(fen=fen)
+
+        from_square_probs = F.softmax(self.selector(board_state), dim=1)
+        from_square_probs = torch.sort(from_square_probs, descending=True)
+
+        for square in from_square_probs.indices[0]:
+            if board.piece_at(int(square)) is not None:
+                from_square = square
+                piece_moved = board.piece_at(int(square))
+                break
+        else:
+            print("Cannot find legal from_square.")
+            return False
+        return from_square, piece_moved
+
+
+    def get_to_square(self, fen, white_turn, from_square, piece_moved):
+
+        model = self.get_piece_model(piece_moved=piece_moved)
+
+        board_state = torch.from_numpy(fen_to_board(fen=fen, piece_values=PIECE_VALUES, white_turn=white_turn))[None, :]
+        board = chess.Board(fen=fen)
+
+        to_square_probs = F.softmax(model(board_state), dim=1)
+        to_square_probs = torch.sort(to_square_probs, descending=True)
+
+        for square in to_square_probs.indices[0]:
+            if board.is_legal(chess.Move(int(from_square), int(square))):
+                to_square = square
+                break
+        else:
+            print("Cannot find legal to_square.")
+            return False
+        return to_square
+            
+
 if __name__=="__main__":
+
     selector_path = get_model_path(MODELS_DIR, 'selector')
-    print(selector_path)
     p_path = get_model_path(MODELS_DIR, 'p')
     b_path = get_model_path(MODELS_DIR, 'b')
     n_path = get_model_path(MODELS_DIR, 'n')
@@ -46,12 +122,5 @@ if __name__=="__main__":
 
     print("Initialising JoshFish 1.0")
     engine = Engine(selector_path, p_path, b_path, n_path, r_path, q_path, k_path)
+    engine.play()
 
-    board = chess.Board()
-
-    while not board.is_game_over():
-        # my move
-        print(board)
-        move = input("Your move: ")
-        board.push_san(move)
-        fen = board.board_fen()

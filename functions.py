@@ -84,7 +84,7 @@ def init_board(piece_values=PIECE_VALUES):
 def fen_to_board(fen, piece_values=PIECE_VALUES, white_turn=True):
     board = np.zeros((6, 8, 8), dtype="float32")
     new_fen = ''
-    for char in fen:
+    for char in fen.split(' ')[0]: # edited to accomodate full FEN
         if char.isnumeric():
             new_fen += "0" * int(char)
         else:
