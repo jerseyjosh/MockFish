@@ -1,2 +1,5 @@
-"train_model.py -p all" -> 26%
-"train_model.py"        -> 40%
+TODO:
+
+• Make train/test/validation split more robust
+• Visualise predictions w/ class accuracy
+• Make engine playable as black

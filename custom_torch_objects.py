@@ -10,7 +10,7 @@ class ChessDataset(Dataset):
     def __init__(self, root, path, target_piece, transforms=ToTensor()):
         self.path = path
         self.transforms=transforms
-        self.df = pd.read_pickle(DATA_DIR + DF_PATH) 
+        self.df = pd.read_pickle(root + path).reset_index()
         if target_piece != 'selector':
             self.df = self.df[self.df.pieces_moved.str.lower()==target_piece].reset_index()
 
@@ -30,9 +30,8 @@ class ChessDataset(Dataset):
         return board_state, from_square, to_square, piece_moved
 
 
-# no weight initialisation -> 34% piece selector accuracy
 class Mockfish(nn.Module):
-    def __init__(self, numChannels, classes, init_weights=None):
+    def __init__(self):
         super(Mockfish, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=6, out_channels=96, kernel_size=(3, 3), padding=(1, 1))
         torch.nn.init.xavier_uniform_(self.conv1.weight)
@@ -42,7 +41,7 @@ class Mockfish(nn.Module):
         torch.nn.init.xavier_uniform_(self.conv3.weight)
         self.fc1 = nn.Linear(in_features=24576, out_features=256)
         torch.nn.init.xavier_uniform_(self.fc1.weight)
-        self.fc2 = nn.Linear(in_features=256, out_features=classes)
+        self.fc2 = nn.Linear(in_features=256, out_features=64)
         torch.nn.init.xavier_uniform_(self.fc2.weight)
 
     def forward(self, x):
@@ -53,5 +52,3 @@ class Mockfish(nn.Module):
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
-    
-

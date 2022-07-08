@@ -3,37 +3,38 @@ import torch.nn.functional as F
 import torch
 import chess
 import chess.svg
+from IPython.display import SVG, display
 from config import *
 from functions import *
 
 class Engine():
     def __init__(self, selector_path, p_path, b_path, n_path, r_path, q_path, k_path):
 
-        self.selector = Mockfish(6, 64)
+        self.selector = Mockfish()
         self.selector.load_state_dict(torch.load(selector_path))
         self.selector.eval()
 
-        self.pawn = Mockfish(6, 64)
+        self.pawn = Mockfish()
         self.pawn.load_state_dict(torch.load(p_path))
         self.pawn.eval()
 
-        self.bishop = Mockfish(6, 64)
+        self.bishop = Mockfish()
         self.bishop.load_state_dict(torch.load(b_path))
         self.bishop.eval()
 
-        self.knight = Mockfish(6, 64)
+        self.knight = Mockfish()
         self.knight.load_state_dict(torch.load(n_path))
         self.knight.eval()
 
-        self.rook = Mockfish(6, 64)
+        self.rook = Mockfish()
         self.rook.load_state_dict(torch.load(r_path))
         self.rook.eval()
 
-        self.queen = Mockfish(6, 64)
+        self.queen = Mockfish()
         self.queen.load_state_dict(torch.load(q_path))
         self.queen.eval()
 
-        self.king = Mockfish(6, 64)
+        self.king = Mockfish()
         self.king.load_state_dict(torch.load(k_path))
         self.king.eval()
 
@@ -41,16 +42,23 @@ class Engine():
     def play(self):
         board = chess.Board()
         while not board.is_game_over():
-            print(board)
-            move = input("Your move: ")
-            board.push_san(move)
+            display(chess.svg.board(board, size=500))
+            #print(board)
+            move_is_legal = False
+            while not move_is_legal:
+                move = input("Your move: ")
+                try:
+                    board.push_san(move)
+                    move_is_legal = True
+                except ValueError:
+                    print("Illegal move, try again.")
             fen = board.fen()
             from_square, piece_moved = self.get_from_square(fen=fen, white_turn=board.turn)
             to_square = self.get_to_square(fen=fen, white_turn=board.turn, from_square=from_square, piece_moved=piece_moved)
-
+            #print(chess.square_name(from_square), chess.square_name(to_square))
             board.push(chess.Move(from_square, to_square))
-            print("-       -")
-            print("-       -")
+            print(chess.square_name(from_square), chess.square_name(to_square))
+            print("- - - - - - -")
 
 
     def get_piece_model(self, piece_moved):

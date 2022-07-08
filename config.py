@@ -5,7 +5,10 @@ ELO_LOWER_LIMIT = 2000
 PIECE_VALUES = [1, 1, 1, 1, 1, 1]
 DATA_DIR = "./data/"
 DATA_PATH = "2016_CvC.csv"
-DF_PATH = f"training_data_{ELO_LOWER_LIMIT}.pickle"
+DF_PATH = f"data_{ELO_LOWER_LIMIT}elo.pickle"
+TRAINING_PATH = f"training_{ELO_LOWER_LIMIT}elo.pickle"
+VALIDATION_PATH = f"validation_{ELO_LOWER_LIMIT}elo.pickle"
+TESTING_PATH = f"testing_{ELO_LOWER_LIMIT}elo.pickle"
 
 # Training Params
 TRAIN_SIZE, TRAIN_BATCH_SIZE = 0.8, 250

@@ -23,26 +23,18 @@ if INPUT is not None:
 assert INPUT in ['selector', 'p', 'b', 'n', 'r', 'q', 'k', 'all'], f"Expected one of ['selector', 'p', 'b', 'n', 'r', 'q', 'k', 'all'], got '{INPUT}'"
 
 # create dataloaders for specific pieces
-# PROBLEM IS IN DATALOADERS OR DATASET
 def create_dataloaders(target_piece):
     print(f"Training {target_piece} network...")
-    print("Loading dataset...")
-    t0=time.time()
-    chessData = ChessDataset(DATA_DIR, DF_PATH, target_piece=target_piece)
-    t1=time.time()
-    print(f"Took {t1-t0:.2f}s")
+    print("Loading training data...")
+    training = ChessDataset(DATA_DIR, TRAINING_PATH, target_piece=target_piece)
+    print("Loading validation data...")
+    validation = ChessDataset(DATA_DIR, VALIDATION_PATH, target_piece=target_piece)
+    print("Loading testing data...")
+    testing = ChessDataset(DATA_DIR, TESTING_PATH, target_piece=target_piece)
 
-    print("Generating train/test/validation split...")
-    train_size = int(TRAIN_SIZE * len(chessData))
-    valid_size = int(VALID_SIZE * len(chessData))
-    test_size = len(chessData) - train_size - valid_size
-
-    trainData, validData, testData = torch.utils.data.random_split(chessData, [train_size, valid_size, test_size], 
-                                                                   generator=torch.Generator().manual_seed(69))
-
-    trainLoader = DataLoader(trainData, num_workers=NUM_WORKERS, batch_size=TRAIN_BATCH_SIZE, shuffle=True)
-    validLoader = DataLoader(validData, num_workers=NUM_WORKERS, batch_size=VALID_BATCH_SIZE, shuffle=False)
-    testLoader = DataLoader(testData, num_workers=NUM_WORKERS, batch_size=TEST_BATCH_SIZE, shuffle=False)
+    trainLoader = DataLoader(training, num_workers=NUM_WORKERS, batch_size=TRAIN_BATCH_SIZE)
+    validLoader = DataLoader(validation, num_workers=NUM_WORKERS, batch_size=VALID_BATCH_SIZE)
+    testLoader = DataLoader(testing, num_workers=NUM_WORKERS, batch_size=TEST_BATCH_SIZE)
 
     return trainLoader, validLoader, testLoader
 
@@ -50,7 +42,7 @@ def create_dataloaders(target_piece):
 
 def mockfish_train(trainLoader, validLoader, ModelClass, save_dir, target_piece='selector'):
 
-    model = ModelClass(6, 64).to(DEVICE)
+    model = ModelClass().to(DEVICE)
     print(model)
     optimizer = Adam(model.parameters(), lr=LEARNING_RATE)
     criterion = nn.CrossEntropyLoss()
