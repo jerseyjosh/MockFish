@@ -34,15 +34,17 @@ class Mockfish(nn.Module):
     def __init__(self):
         super(Mockfish, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=6, out_channels=96, kernel_size=(3, 3), padding=(1, 1))
-        torch.nn.init.xavier_uniform_(self.conv1.weight)
         self.conv2 = nn.Conv2d(in_channels=96, out_channels=256, kernel_size=(3, 3), padding=(1, 1))
-        torch.nn.init.xavier_uniform_(self.conv2.weight)
         self.conv3 = nn.Conv2d(in_channels=256, out_channels=384, kernel_size=(3, 3), padding=(1, 1))
-        torch.nn.init.xavier_uniform_(self.conv3.weight)
         self.fc1 = nn.Linear(in_features=24576, out_features=256)
-        torch.nn.init.xavier_uniform_(self.fc1.weight)
         self.fc2 = nn.Linear(in_features=256, out_features=64)
-        torch.nn.init.xavier_uniform_(self.fc2.weight)
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Conv2d):
+            torch.nn.init.xavier_uniform_(module.weight)
+        elif isinstance(module, nn.Linear):
+            torch.nn.init.xavier_uniform_(module.weight)
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
