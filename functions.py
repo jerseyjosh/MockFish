@@ -21,64 +21,6 @@ def san_to_lan(moves):
     lan += str(board.push_san(move)) + " "
   return lan[:-1]
 
-# Generate 6x8x8 board array
-def init_board(piece_values=PIECE_VALUES): 
-    INIT_PAWNS = np.array([[0, 0, 0, 0, 0, 0, 0, 0],
-                        [-piece_values[0] for i in range(8)],
-                        [0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0],
-                        [piece_values[0] for i in range(8)],
-                        [0, 0, 0, 0, 0, 0, 0, 0]])
-
-    INIT_KNIGHTS = np.array([[0, -piece_values[1], 0, 0, 0, 0, -piece_values[1], 0],
-                          [0, 0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0, 0],
-                          [0, piece_values[1], 0, 0, 0, 0, piece_values[1], 0]])
-
-    INIT_BISHOPS = np.array([[0, 0, -piece_values[2], 0, 0, -piece_values[2], 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, piece_values[2], 0, 0, piece_values[2], 0, 0]])
-
-    INIT_ROOKS = np.array([[-piece_values[3], 0, 0, 0, 0, 0, 0, -piece_values[3]],
-                        [0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0],
-                        [piece_values[3], 0, 0, 0, 0, 0, 0, piece_values[3]]])
-
-    INIT_QUEENS = np.array([[0, 0, 0, -piece_values[4], 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, piece_values[4], 0, 0, 0, 0]])
-
-    INIT_KINGS = np.array([[0, 0, 0, 0, -piece_values[5], 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, piece_values[5], 0, 0, 0]])
-
-    INIT_BOARD = np.stack((INIT_PAWNS, INIT_KNIGHTS, INIT_BISHOPS, INIT_ROOKS, INIT_QUEENS, INIT_KINGS))
-    return INIT_BOARD
 
 # converts fen representation to board object
 def fen_to_board(fen, piece_values=PIECE_VALUES, white_turn=True):

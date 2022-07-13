@@ -23,20 +23,24 @@ if INPUT is not None:
 assert INPUT in ['selector', 'p', 'b', 'n', 'r', 'q', 'k', 'all'], f"Expected one of ['selector', 'p', 'b', 'n', 'r', 'q', 'k', 'all'], got '{INPUT}'"
 
 # create dataloaders for specific pieces
-def create_dataloaders(target_piece):
-    print(f"Training {target_piece} network...")
-    print("Loading training data...")
-    training = ChessDataset(DATA_DIR, TRAINING_PATH, target_piece=target_piece)
-    print("Loading validation data...")
-    validation = ChessDataset(DATA_DIR, VALIDATION_PATH, target_piece=target_piece)
-    print("Loading testing data...")
-    testing = ChessDataset(DATA_DIR, TESTING_PATH, target_piece=target_piece)
+def create_dataloaders(target_piece, dataset):
+    print(f"Loading {target_piece} data...")
 
-    trainLoader = DataLoader(training, num_workers=NUM_WORKERS, batch_size=TRAIN_BATCH_SIZE)
-    validLoader = DataLoader(validation, num_workers=NUM_WORKERS, batch_size=VALID_BATCH_SIZE)
-    testLoader = DataLoader(testing, num_workers=NUM_WORKERS, batch_size=TEST_BATCH_SIZE)
-
-    return trainLoader, validLoader, testLoader
+    if dataset=='training':
+        print("Loading training data...")
+        training = ChessDataset(DATA_DIR, TRAINING_PATH, target_piece=target_piece)
+        trainLoader = DataLoader(training, num_workers=NUM_WORKERS, batch_size=TRAIN_BATCH_SIZE)
+        return trainLoader
+    elif dataset=='validation':
+        print("Loading validation data...")
+        validation = ChessDataset(DATA_DIR, VALIDATION_PATH, target_piece=target_piece)
+        validLoader = DataLoader(validation, num_workers=NUM_WORKERS, batch_size=VALID_BATCH_SIZE)
+        return validLoader
+    elif dataset=='testing':
+        print("Loading testing data...")
+        testing = ChessDataset(DATA_DIR, TESTING_PATH, target_piece=target_piece)
+        testLoader = DataLoader(testing, num_workers=NUM_WORKERS, batch_size=TEST_BATCH_SIZE)
+        return testLoader
 
 
 
@@ -49,12 +53,10 @@ def mockfish_train(trainLoader, validLoader, ModelClass, save_dir, target_piece=
 
     trainLosses = []
     validLosses = []
-    randomLosses = []
     iterations = []
+    iterations_proportions = []
     running_iterations = 0
-    
     validAccuracies = []
-    randomAccuracies = []
 
     minValidLoss = np.inf
     bailCounter = 0
@@ -84,14 +86,12 @@ def mockfish_train(trainLoader, validLoader, ModelClass, save_dir, target_piece=
             trainLoss += loss.item()
 
             # Validate 5 times per epoch
-            VALIDATION_EPOCHS = len(trainLoader) // 5
-            if (batch+1) % VALIDATION_EPOCHS == 0:
+            NUM_BATCHES_BEFORE_VALIDATION = len(trainLoader) // 5
+            if (batch+1) % NUM_BATCHES_BEFORE_VALIDATION == 0:
                 validLoss = 0.0
-                vrandomLoss = 0.0
                 model.eval()     
                 with torch.no_grad():
                     vnum_correct = 0.0
-                    vrandom_num_correct = 0.0
                     vnum_samples = 0.0
                     print("Validating...") 
                     for vdata, vfrom_square, vto_square,_ in tqdm(validLoader):
@@ -100,37 +100,27 @@ def mockfish_train(trainLoader, validLoader, ModelClass, save_dir, target_piece=
                         vtarget = model(vdata)
 
                         _,vpredictions = torch.max(vtarget.data, 1)
-                        vrandom_predictions = torch.randint(64, [len(vdata)]).to(DEVICE)
-                        vrandom_probs = torch.Tensor(len(vdata) * [[1/64] * 64]).to(DEVICE)
 
                         vnum_correct += (vpredictions == vlabel).sum()
-                        vrandom_num_correct += (vrandom_predictions == vlabel).sum()
                         vnum_samples += vpredictions.size(0)
 
                         vloss = criterion(vtarget,vlabel)
-                        vrandom_loss = criterion(vrandom_probs, vlabel)
 
                         validLoss += vloss.item()
-                        vrandomLoss += vrandom_loss.item()
 
                 avgTrainLoss = trainLoss / (batch+1)
                 avgValidLoss = validLoss / len(validLoader)
-                avgRandomLoss = vrandomLoss / len(validLoader)
 
                 vaccuracy = float(vnum_correct) / float(vnum_samples)
-                vrandom_accuracy = float(vrandom_num_correct) / float(vnum_samples)
 
                 iterations.append(running_iterations)
+                iterations_proportions.append(running_iterations / len(trainLoader))
                 trainLosses.append(avgTrainLoss)
                 validLosses.append(avgValidLoss)
-                randomLosses.append(avgRandomLoss)
-
                 validAccuracies.append(vaccuracy)
-                randomAccuracies.append(vrandom_accuracy)
 
                 print(f"Iteration {batch+1}")
-                print(f"Training loss: {avgTrainLoss} \t\t Validation loss: {avgValidLoss} \t\t Random loss: {avgRandomLoss}")
-                print(f"Validation accuracy: {100 * vaccuracy :.2}% \t\t Random Accuracy: {100 * vrandom_accuracy :.2f}%")
+                print(f"Training loss: {avgTrainLoss} \t\t Validation loss: {avgValidLoss} \t\t Validation accuracy: {100 * vaccuracy :.2}%")
 
                 if avgValidLoss < minValidLoss:
                     best_model = copy.deepcopy(model)
@@ -141,7 +131,7 @@ def mockfish_train(trainLoader, validLoader, ModelClass, save_dir, target_piece=
                 else:
                     bailCounter += 1
                     print(f"Validation loss increased, bail counter: {bailCounter}")
-                    if bailCounter > 2:
+                    if bailCounter > 9:
                         break
                     
         # for/else block to break outer loop when vloss stops decreasing
@@ -153,20 +143,30 @@ def mockfish_train(trainLoader, validLoader, ModelClass, save_dir, target_piece=
     torch.save(best_model.state_dict(), save_dir + model._get_name() + f"_{target_piece}_{current_epoch}e_{current_batch}b_{LEARNING_RATE}lr.pth")
 
     # save losses and accuracies
-    losses = pd.DataFrame({"iterations": iterations, "trainLosses": trainLosses, "validLosses": validLosses, "randomLosses": randomLosses})
-    accuracies = pd.DataFrame({"iterations": iterations, "validAccuracies": validAccuracies, "randomAccuracies": randomAccuracies})
-    losses.to_csv(RESULTS_DIR + model._get_name() + f"_{target_piece}_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr_losses.csv", index=False)
-    accuracies.to_csv(RESULTS_DIR + model._get_name() + f"_{target_piece}_{current_epoch}e_{batch+1}b_{LEARNING_RATE}lr_accuracies.csv", index=False)
+    losses = pd.DataFrame(
+        {"iterations": iterations, 
+        "iterations_proportions": iterations_proportions, 
+        "trainLosses": trainLosses, 
+        "validLosses": validLosses})
+    accuracies = pd.DataFrame(
+        {"iterations": iterations, 
+        "iterations_proportions": iterations_proportions, 
+        "validAccuracies": validAccuracies})
+    losses.to_csv(RESULTS_DIR + model._get_name() + f"_{target_piece}_{LEARNING_RATE}lr_losses.csv", index=False)
+    accuracies.to_csv(RESULTS_DIR + model._get_name() + f"_{target_piece}_{LEARNING_RATE}lr_accuracies.csv", index=False)
 
 if __name__=="__main__":
+
     print(f"Using device: {DEVICE}")
     print(f"num_workers: {NUM_WORKERS}") 
 
     if INPUT == 'all':
         print("Training all networks...")
         for p in ['selector', 'p', 'b', 'n', 'r', 'q', 'k']:
-            trainLoader, validLoader, testLoader = create_dataloaders(target_piece=p)
-            mockfish_train(trainLoader, validLoader, Mockfish, save_dir=MODELS_DIR, target_piece=p)
+            trainLoader = create_dataloaders(target_piece=p, dataset='training')
+            validLoader = create_dataloaders(target_piece=p, dataset='validation')
+            mockfish_train(trainLoader, validLoader, Mockfish, save_dir=TEMP_MODELS_DIR, target_piece=p)
     else:
-        trainLoader, validLoader, testLoader = create_dataloaders(target_piece=INPUT)
-        mockfish_train(trainLoader, validLoader, Mockfish, save_dir = MODELS_DIR, target_piece=INPUT)
+        trainLoader = create_dataloaders(target_piece=INPUT, dataset='training')
+        validLoader = create_dataloaders(target_piece=INPUT, dataset='validation')
+        mockfish_train(trainLoader, validLoader, Mockfish, save_dir = TEMP_MODELS_DIR, target_piece=INPUT)

@@ -7,24 +7,30 @@ from config import *
 from functions import *
 from argparse import ArgumentParser
 from custom_torch_objects import Mockfish
+from train_model import create_dataloaders
 
 # Add argparse for testing specific networks
 parser = ArgumentParser()
-parser.add_argument("-p", "--piece", help="choose the piece to test accuracy on.")
+parser.add_argument("piece", 
+                    help="choose the piece to test network on.")
 args = parser.parse_args()
 
-PIECE = args.piece
-if PIECE is not None:
-    PIECE = PIECE.lower()
-assert PIECE in ['None', 'p', 'b', 'n', 'r', 'q', 'k'], f"Expected one of [None, 'p', 'b', 'n', 'r', 'q', 'k'], got '{PIECE}'"
+INPUT = args.piece
+if INPUT is not None:
+    INPUT = INPUT.lower()
+assert INPUT in ['selector', 'p', 'b', 'n', 'r', 'q', 'k', 'all'], f"Expected one of ['selector', 'p', 'b', 'n', 'r', 'q', 'k', 'all'], got '{INPUT}'"
 
 def get_model_path(dir, piece):
-    pattern = f"*_{piece}_*.pth"
+    pattern = f"_{piece}_"
     for f in os.listdir(dir):
-        if pattern.match(f):
+        if re.search(pattern, f):
             return dir + f
 
-def test_model(model, testLoader):
+def test_model(testLoader, ModelClass, save_dir, target_piece='selector'):
+    model = ModelClass().to(DEVICE)
+    print(model)
+    model_path = get_model_path(TEMP_MODELS_DIR, target_piece)
+    model.load_state_dict(torch.load(model_path))
     num_correct = 0.0
     num_samples = 0.0
     class_accuracies = [0 for _ in range(64)]
@@ -32,7 +38,7 @@ def test_model(model, testLoader):
     with torch.no_grad():
         for b, (data, from_square, to_square, _) in enumerate(tqdm(testLoader)):
             # set label by whether training piece selector or piece network
-            label = from_square if PIECE is None else to_square
+            label = from_square if target_piece=='selector' else to_square
             data, label = data.to(DEVICE), label.to(DEVICE)
             scores = model(data)
             _, predictions = scores.max(1)
@@ -41,22 +47,24 @@ def test_model(model, testLoader):
             ###
             # TODO: IMPLEMENT MULTICLASS ACCURACY, maybe visualisation
             ###
-            #for i in range(64):
-                 #class_accuracies[i] += ((predictions == label) * (label == i)).float() / (max(label == i).sum(), 1)
-            #class_accuracies /= (b+1)
-    accuracy = num_correct/num_samples
+    accuracy = float(num_correct)/float(num_samples)
 
     print(f'Got {num_correct} / {num_samples} with accuracy {(100 * accuracy) :.2f}')
-    model.train()
 
     return accuracy, class_accuracies
 
 
 
 if __name__ == "__main__":
-    model = Mockfish(6, 64).to(DEVICE)
-    model_path = get_model_path(MODELS_DIR, PIECE)
-    print("model path")
-    model.load_state_dict(torch.load(model_path))
-    trainLoader, validLoader, testLoader = create_dataloaders(piece=PIECE)
-    accuracy, class_accuracies = test_model(model, testLoader)
+    if INPUT == 'all':
+        accuracies = []
+        print("Testing all networks...")
+        for p in ['selector', 'p', 'b', 'n', 'r', 'q', 'k']:
+            testLoader = create_dataloaders(target_piece=p, dataset='testing')
+            accuracy,_ = test_model(testLoader, Mockfish, save_dir=RESULTS_DIR, target_piece=p)
+            accuracies.append(accuracy)
+        df = pd.DataFrame({'network':['selector', 'p', 'b', 'n', 'r', 'q', 'k'], 'accuracy':accuracies})
+        df.to_csv(RESULTS_DIR + "testing_accuracies.csv", index=False)
+    else:
+        testLoader = create_dataloaders(target_piece=INPUT, dataset='testing')
+        test_model(testLoader, Mockfish, save_dir=RESULTS_DIR, target_piece=INPUT)

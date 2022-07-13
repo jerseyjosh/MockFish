@@ -86,36 +86,44 @@ class Engine():
 
         from_square_probs = F.softmax(self.selector(board_state), dim=1)
         from_square_probs = torch.sort(from_square_probs, descending=True)
+        from_squares = from_square_probs.indices[0]
 
-        for square in from_square_probs.indices[0]:
+        if not white_turn:
+            from_squares = 63 * torch.ones(len(from_squares)) - from_squares
+
+        for square in from_squares:
             if board.piece_at(int(square)) is not None:
                 from_square = square
                 piece_moved = board.piece_at(int(square))
-                break
+                return int(from_square), piece_moved
         else:
             print("Cannot find legal from_square.")
+            quit()
             return False
-        return from_square, piece_moved
 
 
     def get_to_square(self, fen, white_turn, from_square, piece_moved):
 
         model = self.get_piece_model(piece_moved=piece_moved)
-
         board_state = torch.from_numpy(fen_to_board(fen=fen, piece_values=PIECE_VALUES, white_turn=white_turn))[None, :]
         board = chess.Board(fen=fen)
 
         to_square_probs = F.softmax(model(board_state), dim=1)
         to_square_probs = torch.sort(to_square_probs, descending=True)
+        to_squares = to_square_probs.indices[0]
 
-        for square in to_square_probs.indices[0]:
+        if not white_turn:
+            to_squares = 63 * torch.ones(len(to_squares)) - to_squares
+
+        for square in to_squares:
             if board.is_legal(chess.Move(int(from_square), int(square))):
                 to_square = square
-                break
+                print(f'from: {from_square}, to: {to_square}')
+                return int(to_square)
         else:
             print("Cannot find legal to_square.")
+            quit()
             return False
-        return to_square
             
 
 if __name__=="__main__":

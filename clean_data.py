@@ -33,6 +33,7 @@ def load_data(root, path, train_path, valid_path, test_path, elo_limit, piece_va
     to_squares = []
     pieces_moved = []
     for game in tqdm(parsed_lans):
+
         board = chess.Board()
         white_turn=True
         for move in game.split():
@@ -41,9 +42,15 @@ def load_data(root, path, train_path, valid_path, test_path, elo_limit, piece_va
             piece_moved = board.piece_at(from_square)
             board_array = fen_to_board(board.board_fen(), piece_values=piece_values, white_turn=white_turn)
             board_states.append(board_array)
-            from_squares.append(from_square)
-            to_squares.append(to_square)
+            ### FROM_SQUARES AND TO_SQUARES ARE NOW ALWAYS COUNTING AS IF FROM PERSPECTIVE OF WHITE
+            if white_turn:
+                from_squares.append(from_square)
+                to_squares.append(to_square)
+            elif not white_turn:
+                from_squares.append(63-from_square)
+                to_squares.append(63-to_square)
             pieces_moved.append(str(piece_moved))
+
             board.push_san(move)
             white_turn = not white_turn
 
@@ -64,6 +71,7 @@ def load_data(root, path, train_path, valid_path, test_path, elo_limit, piece_va
 
         
 if __name__ == "__main__":
+    t0=time.time()
     load_data(
         root=DATA_DIR, 
         path=DATA_PATH, 
@@ -73,3 +81,6 @@ if __name__ == "__main__":
         elo_limit=ELO_LOWER_LIMIT,
         piece_values=PIECE_VALUES,
         random_seed=69)
+    t1=time.time()
+    print("Done.")
+    print(f"Took {t1-t0:.2f}s")
