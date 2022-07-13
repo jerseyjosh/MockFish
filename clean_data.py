@@ -41,8 +41,9 @@ def load_data(root, path, train_path, valid_path, test_path, elo_limit, piece_va
             to_square = chess.parse_square(move[2:4])
             piece_moved = board.piece_at(from_square)
             board_array = fen_to_board(board.board_fen(), piece_values=piece_values, white_turn=white_turn)
-            board_states.append(board_array)
             ### FROM_SQUARES AND TO_SQUARES ARE NOW ALWAYS COUNTING AS IF FROM PERSPECTIVE OF WHITE
+
+            board_states.append(board_array)
             if white_turn:
                 from_squares.append(from_square)
                 to_squares.append(to_square)
@@ -53,7 +54,6 @@ def load_data(root, path, train_path, valid_path, test_path, elo_limit, piece_va
 
             board.push_san(move)
             white_turn = not white_turn
-
 
     df = pd.DataFrame({"board_states": board_states, 
                         "from_squares": from_squares, 
@@ -75,9 +75,9 @@ if __name__ == "__main__":
     load_data(
         root=DATA_DIR, 
         path=DATA_PATH, 
-        train_path=TRAINING_PATH, 
-        valid_path=VALIDATION_PATH,
-        test_path=TESTING_PATH,
+        train_path='training_2000elo.pickle', 
+        valid_path='validation_2000elo.pickle',
+        test_path='testing_2000elo.pickle',
         elo_limit=ELO_LOWER_LIMIT,
         piece_values=PIECE_VALUES,
         random_seed=69)

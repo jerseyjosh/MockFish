@@ -54,3 +54,32 @@ class Mockfish(nn.Module):
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
+
+class Mockfish2(nn.Module):
+    def __init__(self):
+        super(Mockfish, self).__init__()
+        self.fc_first = nn.Linear(in_features=64*6, out_features=64*6)
+        self.conv1 = nn.Conv2d(in_channels=6, out_channels=96, kernel_size=(3, 3), padding=(1, 1))
+        self.conv2 = nn.Conv2d(in_channels=96, out_channels=256, kernel_size=(3, 3), padding=(1, 1))
+        self.conv3 = nn.Conv2d(in_channels=256, out_channels=384, kernel_size=(3, 3), padding=(1, 1))
+        self.fc1 = nn.Linear(in_features=24576, out_features=256)
+        self.fc2 = nn.Linear(in_features=256, out_features=64)
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Conv2d):
+            torch.nn.init.xavier_uniform_(module.weight)
+        elif isinstance(module, nn.Linear):
+            torch.nn.init.xavier_uniform_(module.weight)
+
+    def forward(self, x):
+        x = torch.flatten(x, 1)
+        x = F.relu(self.fc_first(x))
+        x = torch.reshape(6, 8, 8)
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = torch.flatten(x, 1)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        return x
