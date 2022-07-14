@@ -1,5 +1,5 @@
 TODO:
 
-• Visualise predictions w/ class accuracy
-• Make engine playable as black
+• Combine selector and piece networks into move predictor.
+• Make engine playable as black.
 • Test performance on mate-in-one puzzles before and after selective training.

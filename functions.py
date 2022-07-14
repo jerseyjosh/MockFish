@@ -64,9 +64,19 @@ def fen_to_board(fen, piece_values=PIECE_VALUES, white_turn=True):
     else:
         return board
 
-# get model path for specific piece
+
 def get_model_path(dir, piece):
     pattern = f"_{piece}_"
     for f in os.listdir(dir):
         if re.search(pattern, f):
             return dir + f
+
+# adapted from sklearn implementation
+def confusion_matrix(y_true, y_pred, N=64):
+    #N = max(max(y_true), max(y_pred)) + 1
+    y_true = torch.tensor(y_true, dtype=torch.long)
+    y_pred = torch.tensor(y_pred, dtype=torch.long)
+    return torch.sparse.LongTensor(
+        torch.stack([y_true, y_pred]), 
+        torch.ones_like(y_true, dtype=torch.long),
+        torch.Size([N, N])).to_dense()

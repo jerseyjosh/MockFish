@@ -1,10 +1,12 @@
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 import re
 import os
 from config import *
 from functions import *
+from sklearn.metrics import classification_report
 from argparse import ArgumentParser
 from custom_torch_objects import Mockfish
 from train_model import create_dataloaders
@@ -26,15 +28,20 @@ def get_model_path(dir, piece):
         if re.search(pattern, f):
             return dir + f
 
-def test_model(testLoader, ModelClass, save_dir, target_piece='selector'):
+def test_model(testLoader, ModelClass, target_piece='selector'):
+
     model = ModelClass().to(DEVICE)
     print(model)
-    model_path = get_model_path(TEMP_MODELS_DIR, target_piece)
+    model_path = get_model_path(MODELS_DIR, target_piece)
     model.load_state_dict(torch.load(model_path))
+    model.eval()
+
     num_correct = 0.0
     num_samples = 0.0
-    class_accuracies = [0 for _ in range(64)]
-    model.eval()
+
+    # initialize empty confusion matrix
+    cm = torch.zeros((64, 64))
+
     with torch.no_grad():
         for b, (data, from_square, to_square, _) in enumerate(tqdm(testLoader)):
             # set label by whether training piece selector or piece network
@@ -42,29 +49,41 @@ def test_model(testLoader, ModelClass, save_dir, target_piece='selector'):
             data, label = data.to(DEVICE), label.to(DEVICE)
             scores = model(data)
             _, predictions = scores.max(1)
+
+            # data needs to be on cpu for confusion matrix
+            predictions, label = predictions.to('cpu'), label.to('cpu')
+            cm += confusion_matrix(label, predictions)
+
             num_correct += (predictions == label).sum()
             num_samples += predictions.size(0)
-            ###
-            # TODO: IMPLEMENT MULTICLASS ACCURACY, maybe visualisation
-            ###
+        
     accuracy = float(num_correct)/float(num_samples)
+    class_accuracy = cm.diag()/cm.sum(1)
 
     print(f'Got {num_correct} / {num_samples} with accuracy {(100 * accuracy) :.2f}')
 
-    return accuracy, class_accuracies
+    return accuracy, class_accuracy, cm
 
 
 
 if __name__ == "__main__":
     if INPUT == 'all':
         accuracies = []
+        class_accuracies = []
+        confusion_matrices = []
         print("Testing all networks...")
         for p in ['selector', 'p', 'b', 'n', 'r', 'q', 'k']:
             testLoader = create_dataloaders(target_piece=p, dataset='testing')
-            accuracy,_ = test_model(testLoader, Mockfish, save_dir=RESULTS_DIR, target_piece=p)
+            accuracy, class_accuracy, cm = test_model(testLoader, Mockfish, target_piece=p)
             accuracies.append(accuracy)
-        df = pd.DataFrame({'network':['selector', 'p', 'b', 'n', 'r', 'q', 'k'], 'accuracy':accuracies})
-        df.to_csv(RESULTS_DIR + "testing_accuracies.csv", index=False)
+            class_accuracies.append(class_accuracy)
+            confusion_matrices.append(cm)
+        df = pd.DataFrame(
+            {'network':['selector', 'p', 'b', 'n', 'r', 'q', 'k'], 
+            'accuracy':accuracies,
+            'class_accuracy': class_accuracies,
+            'confusion_matrix': confusion_matrices})
+        df.to_pickle(RESULTS_DIR + "testing_results.pickle")
     else:
         testLoader = create_dataloaders(target_piece=INPUT, dataset='testing')
-        test_model(testLoader, Mockfish, save_dir=RESULTS_DIR, target_piece=INPUT)
+        test_model(testLoader, Mockfish, target_piece=INPUT)
