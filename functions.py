@@ -14,8 +14,8 @@ def parse_san(moves):
     return parsed_moves
 
 # converts to long algebraic notation: e4 -> e2e4 etc.
-def san_to_lan(moves):
-  board = chess.Board()
+def san_to_lan(moves, fen=None):
+  board = chess.Board(fen=fen)
   lan = ""
   for move in moves.split():
     lan += str(board.push_san(move)) + " "
@@ -70,6 +70,7 @@ def get_model_path(dir, piece):
     for f in os.listdir(dir):
         if re.search(pattern, f):
             return dir + f
+
 
 # adapted from sklearn implementation
 def confusion_matrix(y_true, y_pred, N=64):

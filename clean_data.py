@@ -74,7 +74,7 @@ if __name__ == "__main__":
     t0=time.time()
     load_data(
         root=DATA_DIR, 
-        path=DATA_PATH, 
+        path=DATA_PATH,
         train_path='training_2000elo.pickle', 
         valid_path='validation_2000elo.pickle',
         test_path='testing_2000elo.pickle',

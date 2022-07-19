@@ -6,7 +6,7 @@ import re
 import os
 from config import *
 from functions import *
-from sklearn.metrics import classification_report
+from engine import Engine
 from argparse import ArgumentParser
 from custom_torch_objects import Mockfish
 from train_model import create_dataloaders
