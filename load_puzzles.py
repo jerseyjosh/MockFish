@@ -59,8 +59,6 @@ def clean_puzzles(root, path, train_path, valid_path, test_path, random_seed=69)
     print("Saving testing data...")
     test.to_pickle(root + test_path)
 
-        
-
 
 
 if __name__ == '__main__':

@@ -103,9 +103,13 @@ class Engine():
                 for square in to_squares:
                     if board.is_legal(chess.Move(int(from_square), int(square))):
                         to_square = square
+                        if str(board.piece_at(int(from_square))).lower() == 'p':
+                            promotion = 5
+                        else:
+                            promotion = None
                         return chess.Move(
                             int(from_square), int(to_square), 
-                            promotion=5 if int(to_square)>56 else None)
+                            promotion=promotion if int(to_square)>56 else None)
     
 
     def get_piece_model(self, piece_moved):
@@ -128,7 +132,7 @@ class Engine():
 
 
 if __name__=="__main__":
-
+    
     selector_path = get_model_path(MODELS_DIR, 'selector')
     p_path = get_model_path(MODELS_DIR, 'p')
     b_path = get_model_path(MODELS_DIR, 'b')
@@ -136,7 +140,7 @@ if __name__=="__main__":
     r_path = get_model_path(MODELS_DIR, 'r')
     q_path = get_model_path(MODELS_DIR, 'q')
     k_path = get_model_path(MODELS_DIR, 'k')
-
+    
     engine = Engine(selector_path, p_path, b_path, n_path, r_path, q_path, k_path)
     engine.play(colour='w')
 

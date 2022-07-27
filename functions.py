@@ -5,7 +5,7 @@ import re
 import os
 import time
 from config import *
-from custom_torch_objects import ChessDataset
+from custom_torch_objects import ChessDataset, ChessDatasetNormalized
 from torch.utils.data import DataLoader
 
 # removes extraneous symbols
@@ -70,6 +70,17 @@ def get_model_path(dir, piece):
     for f in os.listdir(dir):
         if re.search(pattern, f):
             return dir + f
+
+# create dataloaders for specific pieces
+def create_dataloaders(target_piece, path, normalized=False):
+    print(f"Loading {target_piece} puzzle data...")
+    print(f"loading dataloader: {path}")
+    if normalized:
+        data = ChessDatasetNormalized(DATA_DIR, path, target_piece=target_piece)
+    else: 
+        data = ChessDataset(DATA_DIR, path, target_piece=target_piece)
+    dataLoader = DataLoader(data, num_workers=NUM_WORKERS, batch_size=TRAIN_BATCH_SIZE)
+    return dataLoader
 
 
 # adapted from sklearn implementation

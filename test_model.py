@@ -9,7 +9,6 @@ from functions import *
 from engine import Engine
 from argparse import ArgumentParser
 from custom_torch_objects import Mockfish
-from train_model import create_dataloaders
 
 # Add argparse for testing specific networks
 parser = ArgumentParser()
@@ -23,7 +22,7 @@ if INPUT is not None:
 assert INPUT in ['selector', 'p', 'b', 'n', 'r', 'q', 'k', 'all'], f"Expected one of ['selector', 'p', 'b', 'n', 'r', 'q', 'k', 'all'], got '{INPUT}'"
 
 def get_model_path(dir, piece):
-    pattern = f"_{piece}_"
+    pattern = f"puzzle_{piece}_"
     for f in os.listdir(dir):
         if re.search(pattern, f):
             return dir + f
@@ -73,7 +72,7 @@ if __name__ == "__main__":
         confusion_matrices = []
         print("Testing all networks...")
         for p in ['selector', 'p', 'b', 'n', 'r', 'q', 'k']:
-            testLoader = create_dataloaders(target_piece=p, dataset='testing')
+            testLoader = create_dataloaders(target_piece=p, path="puzzle_test.pickle")
             accuracy, class_accuracy, cm = test_model(testLoader, Mockfish, target_piece=p)
             accuracies.append(accuracy)
             class_accuracies.append(class_accuracy)
@@ -83,7 +82,7 @@ if __name__ == "__main__":
             'accuracy':accuracies,
             'class_accuracy': class_accuracies,
             'confusion_matrix': confusion_matrices})
-        df.to_pickle(RESULTS_DIR + "testing_results.pickle")
+        df.to_pickle(RESULTS_DIR + "puzzle_testing_results.pickle")
     else:
-        testLoader = create_dataloaders(target_piece=INPUT, dataset='testing')
+        testLoader = create_dataloaders(target_piece=INPUT, path="puzzle_test.pickle")
         test_model(testLoader, Mockfish, target_piece=INPUT)
