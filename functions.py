@@ -5,7 +5,7 @@ import re
 import os
 import time
 from config import *
-from custom_torch_objects import ChessDataset, ChessDatasetNormalized
+from custom_torch_objects import ChessDataset
 from torch.utils.data import DataLoader
 
 # removes extraneous symbols
@@ -15,11 +15,18 @@ def parse_san(moves):
 
 # converts to long algebraic notation: e4 -> e2e4 etc.
 def san_to_lan(moves, fen=None):
-  board = chess.Board(fen=fen)
-  lan = ""
-  for move in moves.split():
-    lan += str(board.push_san(move)) + " "
-  return lan[:-1]
+    if fen is None:
+        board = chess.Board()
+        fen = board.fen()
+    board = chess.Board(fen=fen)
+    lan = ""
+    for move in moves.split():
+        # exception to catch illegal moves
+        try:
+            lan += str(board.push_san(move)) + " "
+        except ValueError:
+            return None
+    return lan[:-1]
 
 
 # converts fen representation to board object
@@ -72,13 +79,10 @@ def get_model_path(dir, piece):
             return dir + f
 
 # create dataloaders for specific pieces
-def create_dataloaders(target_piece, path, normalized=False):
-    print(f"Loading {target_piece} puzzle data...")
+def create_dataloaders(target_piece, dir, path):
+    print(f"Loading {target_piece} data...")
     print(f"loading dataloader: {path}")
-    if normalized:
-        data = ChessDatasetNormalized(DATA_DIR, path, target_piece=target_piece)
-    else: 
-        data = ChessDataset(DATA_DIR, path, target_piece=target_piece)
+    data = ChessDataset(dir, path, target_piece=target_piece)
     dataLoader = DataLoader(data, num_workers=NUM_WORKERS, batch_size=TRAIN_BATCH_SIZE)
     return dataLoader
 

@@ -1,5 +1,7 @@
 TODO:
 
-• Combine selector and piece networks into move predictor.
+• Migrate to new dataset PRIORITY
+• Hypertune parameters somewhat PRIORITY
+• Correct puzzle training to not train on both sides, only the puzzle side.
 • Test performance on mate-in-one puzzles before and after selective training.
-• Try to play sunfish
+• Try to play sunfish.

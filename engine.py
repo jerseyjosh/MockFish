@@ -110,7 +110,7 @@ class Engine():
                         return chess.Move(
                             int(from_square), int(to_square), 
                             promotion=promotion if int(to_square)>56 else None)
-    
+                
 
     def get_piece_model(self, piece_moved):
         piece_moved = str(piece_moved).lower()

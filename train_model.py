@@ -23,11 +23,17 @@ if INPUT is not None:
 assert INPUT in ['selector', 'p', 'b', 'n', 'r', 'q', 'k', 'all'], f"Expected one of ['selector', 'p', 'b', 'n', 'r', 'q', 'k', 'all'], got '{INPUT}'"
 
 
-def mockfish_train(trainLoader, validLoader, ModelClass, model_save_dir, results_save_dir, target_piece='selector'):
+def mockfish_train(trainLoader,
+                    validLoader, 
+                    ModelClass, 
+                    model_save_dir, 
+                    results_save_dir, 
+                    target_piece='selector',
+                    learning_rate = LEARNING_RATE):
 
     model = ModelClass().to(DEVICE)
     print(model)
-    optimizer = Adam(model.parameters(), lr=LEARNING_RATE)
+    optimizer = Adam(model.parameters(), lr=learning_rate)
     criterion = nn.CrossEntropyLoss()
 
     trainLosses = []
@@ -119,7 +125,7 @@ def mockfish_train(trainLoader, validLoader, ModelClass, model_save_dir, results
         break
 
     # save best model
-    torch.save(best_model.state_dict(), model_save_dir + model._get_name() + f"puzzle_{target_piece}_{current_epoch}e_{current_batch}b_{LEARNING_RATE}lr.pth")
+    torch.save(best_model.state_dict(), model_save_dir + model._get_name() + f"{target_piece}_{current_epoch}e_{current_batch}b_{LEARNING_RATE}lr.pth")
 
     # save losses and accuracies
     losses = pd.DataFrame(
@@ -142,14 +148,14 @@ if __name__=="__main__":
     if INPUT == 'all':
         print("Training all networks...")
         for p in ['selector', 'p', 'b', 'n', 'r', 'q', 'k']:
-            trainLoader = create_dataloaders(target_piece=p, path="training_2000elo.pickle")
-            validLoader = create_dataloaders(target_piece=p, path='validation_2000elo.pickle')
+            trainLoader = create_dataloaders(target_piece=p, dir=DATA_DIR, path="training_2000elo.pickle")
+            validLoader = create_dataloaders(target_piece=p, dir=DATA_DIR, path='validation_2000elo.pickle')
             mockfish_train(
                 trainLoader, validLoader, Mockfish, 
-                model_save_dir=TEMP_MODELS_DIR, results_save_dir=RESULTS_DIR, target_piece=p)
+                model_save_dir=MODELS_DIR, results_save_dir=RESULTS_DIR+'training/', target_piece=p)
     else:
-        trainLoader = create_dataloaders(target_piece=INPUT, path="training_2000elo.pickle")
-        validLoader = create_dataloaders(target_piece=INPUT, path="validation_2000elo.pickle")
+        trainLoader = create_dataloaders(target_piece=INPUT, dir=DATA_DIR, path="training_2000elo.pickle")
+        validLoader = create_dataloaders(target_piece=INPUT, dir=DATA_DIR, path="validation_2000elo.pickle")
         mockfish_train(
             trainLoader, validLoader, Mockfish, 
-            model_save_dir=TEMP_MODELS_DIR, results_save_dir=RESULTS_DIR, target_piece=INPUT)
+            model_save_dir=MODELS_DIR, results_save_dir=RESULTS_DIR+'training/', target_piece=INPUT)

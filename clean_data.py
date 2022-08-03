@@ -1,14 +1,13 @@
-from copyreg import pickle
+import pickle
 import pandas as pd
 import numpy as np
-import gc
 import chess
 from tqdm import tqdm
 import time
 from functions import *
 from config import *
 
-def load_data(root, path, train_path, valid_path, test_path, elo_limit, piece_values, random_seed):
+def load_data(root, path, train_path, valid_path, test_path, elo_limit, piece_values, random_seed=69):
 
     # load csv and filter Elo
     print("Loading csv...")
@@ -79,8 +78,7 @@ if __name__ == "__main__":
         valid_path='validation_2000elo.pickle',
         test_path='testing_2000elo.pickle',
         elo_limit=ELO_LOWER_LIMIT,
-        piece_values=PIECE_VALUES,
-        random_seed=69)
+        piece_values=PIECE_VALUES)
     t1=time.time()
     print("Done.")
     print(f"Took {t1-t0:.2f}s")
