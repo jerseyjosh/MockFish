@@ -32,6 +32,7 @@ class ChessDataset(Dataset):
         return board_state, from_square, to_square, piece_moved
 
 
+# static model
 '''
 class Mockfish(nn.Module):
     def __init__(self):
@@ -59,8 +60,10 @@ class Mockfish(nn.Module):
         return x 
 '''
 
+# hypertuning model
+
 class Mockfish(nn.Module):
-    def __init__(self, nhidden=1, hidden_size=256, dropout=False, dropout_rate=0.3):
+    def __init__(self, num_layers=1, hidden_size=256, dropout=0.0):
         super(Mockfish, self).__init__()
         layers = [
             nn.Conv2d(in_channels=6, out_channels=96, kernel_size=(3, 3), padding=(1, 1)),
@@ -71,16 +74,16 @@ class Mockfish(nn.Module):
             nn.ReLU(),
             nn.Flatten()
         ]
-        for _ in range(nhidden):
+        for _ in range(num_layers):
             if len(layers)==7:
                 layers.append(nn.Linear(in_features=24576, out_features=hidden_size))
-                if dropout:
-                    layers.append(nn.Dropout(p=dropout_rate))
+                if dropout>0:
+                    layers.append(nn.Dropout(p=dropout))
                 layers.append(nn.ReLU())
             else:
                 layers.append(nn.Linear(in_features=hidden_size, out_features=hidden_size))
-                if dropout:
-                    layers.append(nn.Dropout(p=dropout_rate))
+                if dropout>0:
+                    layers.append(nn.Dropout(p=dropout))
                 layers.append(nn.ReLU())
         layers.append(nn.Linear(in_features=hidden_size, out_features=64))
         self.model = nn.Sequential(*layers)

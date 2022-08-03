@@ -79,7 +79,7 @@ def get_model_path(dir, piece):
             return dir + f
 
 # create dataloaders for specific pieces
-def create_dataloaders(target_piece, dir, path):
+def create_dataloaders(dir, path, target_piece='selector'):
     print(f"Loading {target_piece} data...")
     print(f"loading dataloader: {path}")
     data = ChessDataset(dir, path, target_piece=target_piece)

@@ -130,7 +130,6 @@ class Engine():
             print("invalid input")
 
 
-
 if __name__=="__main__":
     
     selector_path = get_model_path(MODELS_DIR, 'selector')

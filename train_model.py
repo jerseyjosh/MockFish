@@ -11,29 +11,23 @@ from config import *
 from argparse import ArgumentParser
 from functions import *
 
-# Add argparse for training piece selector vs piece networks
-parser = ArgumentParser()
-parser.add_argument("piece", 
-                    help="choose the piece to train network on.")
-args = parser.parse_args()
-
-INPUT = args.piece
-if INPUT is not None:
-    INPUT = INPUT.lower()
-assert INPUT in ['selector', 'p', 'b', 'n', 'r', 'q', 'k', 'all'], f"Expected one of ['selector', 'p', 'b', 'n', 'r', 'q', 'k', 'all'], got '{INPUT}'"
-
-
 def mockfish_train(trainLoader,
                     validLoader, 
                     ModelClass, 
                     model_save_dir, 
                     results_save_dir, 
+                    params,
                     target_piece='selector',
-                    learning_rate = LEARNING_RATE):
+                    save_model=True):
 
-    model = ModelClass().to(DEVICE)
+    model = ModelClass(
+        num_layers=params["num_layers"],
+        hidden_size=params["hidden_size"],
+        dropout=params["dropout"]
+    ).to(DEVICE)
     print(model)
-    optimizer = Adam(model.parameters(), lr=learning_rate)
+
+    optimizer = Adam(model.parameters(), lr=params["learning_rate"])
     criterion = nn.CrossEntropyLoss()
 
     trainLosses = []
@@ -44,6 +38,7 @@ def mockfish_train(trainLoader,
     validAccuracies = []
 
     minValidLoss = np.inf
+    minValidAccuracy = 0.0
     bailCounter = 0
 
     for x in range(EPOCHS):
@@ -110,6 +105,7 @@ def mockfish_train(trainLoader,
                 if avgValidLoss < minValidLoss:
                     best_model = copy.deepcopy(model)
                     minValidLoss = avgValidLoss
+                    minValidAccuracy = vaccuracy
                     print("Bail counter reset.")
                     bailCounter = 0
 
@@ -124,10 +120,6 @@ def mockfish_train(trainLoader,
             continue
         break
 
-    # save best model
-    torch.save(best_model.state_dict(), model_save_dir + model._get_name() + f"{target_piece}_{current_epoch}e_{current_batch}b_{LEARNING_RATE}lr.pth")
-
-    # save losses and accuracies
     losses = pd.DataFrame(
         {"iterations": iterations, 
         "iterations_proportions": iterations_proportions, 
@@ -137,10 +129,28 @@ def mockfish_train(trainLoader,
         {"iterations": iterations, 
         "iterations_proportions": iterations_proportions, 
         "validAccuracies": validAccuracies})
-    losses.to_csv(results_save_dir + model._get_name() + f"_{target_piece}_{LEARNING_RATE}lr_losses.csv", index=False)
-    accuracies.to_csv(results_save_dir + model._get_name() + f"_{target_piece}_{LEARNING_RATE}lr_accuracies.csv", index=False)
+
+    # save model, losses, accuracies
+    if save_model:
+        torch.save(best_model.state_dict(), model_save_dir + model._get_name() + f"{target_piece}_{current_epoch}e_{current_batch}b_{LEARNING_RATE}lr.pth")
+        losses.to_csv(results_save_dir + model._get_name() + f"_{target_piece}_{LEARNING_RATE}lr_losses.csv", index=False)
+        accuracies.to_csv(results_save_dir + model._get_name() + f"_{target_piece}_{LEARNING_RATE}lr_accuracies.csv", index=False)
+
+    return minValidLoss, minValidAccuracy
 
 if __name__=="__main__":
+
+
+    # Add argparse for training piece selector vs piece networks
+    parser = ArgumentParser()
+    parser.add_argument("piece", 
+                        help="choose the piece to train network on.")
+    args = parser.parse_args()
+
+    INPUT = args.piece
+    if INPUT is not None:
+        INPUT = INPUT.lower()
+    assert INPUT in ['selector', 'p', 'b', 'n', 'r', 'q', 'k', 'all'], f"Expected one of ['selector', 'p', 'b', 'n', 'r', 'q', 'k', 'all'], got '{INPUT}'"
 
     print(f"Using device: {DEVICE}")
     print(f"num_workers: {NUM_WORKERS}") 
@@ -148,14 +158,18 @@ if __name__=="__main__":
     if INPUT == 'all':
         print("Training all networks...")
         for p in ['selector', 'p', 'b', 'n', 'r', 'q', 'k']:
-            trainLoader = create_dataloaders(target_piece=p, dir=DATA_DIR, path="training_2000elo.pickle")
-            validLoader = create_dataloaders(target_piece=p, dir=DATA_DIR, path='validation_2000elo.pickle')
+            trainLoader = create_dataloaders(dir=DATA_DIR, path="training_2000elo.pickle", target_piece=p)
+            validLoader = create_dataloaders(dir=DATA_DIR, path='validation_2000elo.pickle', target_piece=p)
             mockfish_train(
                 trainLoader, validLoader, Mockfish, 
-                model_save_dir=MODELS_DIR, results_save_dir=RESULTS_DIR+'training/', target_piece=p)
+                model_save_dir=MODELS_DIR, results_save_dir=RESULTS_DIR+'training/', 
+                params={
+                    ""
+                },
+                target_piece=p)
     else:
-        trainLoader = create_dataloaders(target_piece=INPUT, dir=DATA_DIR, path="training_2000elo.pickle")
-        validLoader = create_dataloaders(target_piece=INPUT, dir=DATA_DIR, path="validation_2000elo.pickle")
+        trainLoader = create_dataloaders(dir=DATA_DIR, path="training_2000elo.pickle", target_piece=INPUT)
+        validLoader = create_dataloaders(dir=DATA_DIR, path="validation_2000elo.pickle", target_piece=INPUT)
         mockfish_train(
             trainLoader, validLoader, Mockfish, 
             model_save_dir=MODELS_DIR, results_save_dir=RESULTS_DIR+'training/', target_piece=INPUT)
