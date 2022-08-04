@@ -8,7 +8,7 @@ TRAIN_SIZE, TRAIN_BATCH_SIZE = 0.8, 250
 VALID_SIZE, VALID_BATCH_SIZE = 0.1, 250
 TEST_SIZE, TEST_BATCH_SIZE = 0.1, 250
 NUM_WORKERS = 0 # Apple Silicon crashes with num_workers > 0
-EPOCHS = 10
+EPOCHS = 20
 DEVICE = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
 LEARNING_RATE = 0.001 # ADAM adapts automatically, tuning can be ignored
 

@@ -23,7 +23,7 @@ def mockfish_train(trainLoader,
     model = ModelClass(
         num_layers=params["num_layers"],
         hidden_size=params["hidden_size"],
-        dropout=params["dropout"]
+        dropout=params["dropout"],
     ).to(DEVICE)
     print(model)
 
@@ -158,6 +158,8 @@ if __name__=="__main__":
     if INPUT == 'all':
         print("Training all networks...")
         for p in ['selector', 'p', 'b', 'n', 'r', 'q', 'k']:
+            print(f"Loading {p} data...")
+            print(f"loading dataloader: training_2000elo.pickle")
             trainLoader = create_dataloaders(dir=DATA_DIR, path="training_2000elo.pickle", target_piece=p)
             validLoader = create_dataloaders(dir=DATA_DIR, path='validation_2000elo.pickle', target_piece=p)
             mockfish_train(
