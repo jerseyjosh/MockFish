@@ -8,9 +8,18 @@ TRAIN_SIZE, TRAIN_BATCH_SIZE = 0.8, 250
 VALID_SIZE, VALID_BATCH_SIZE = 0.1, 250
 TEST_SIZE, TEST_BATCH_SIZE = 0.1, 250
 NUM_WORKERS = 0 # Apple Silicon crashes with num_workers > 0
-EPOCHS = 20
+EPOCHS = 20 # maximum allowed, never reaches due to early stopping conditions
 DEVICE = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
 LEARNING_RATE = 0.001 # ADAM adapts automatically, tuning can be ignored
+
+# best params
+BEST_PARAMS = {
+    'num_layers': 1,
+    'hidden_size': 561,
+    'dropout': 0.2,
+    'learning_rate': 0.0002122650129983147,
+    'batch_size_power': 7
+ }
 
 # Paths
 IMAGE_DIR = "./images/"

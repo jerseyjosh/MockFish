@@ -2,6 +2,7 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import copy
+import pickle
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -132,14 +133,13 @@ def mockfish_train(trainLoader,
 
     # save model, losses, accuracies
     if save_model:
-        torch.save(best_model.state_dict(), model_save_dir + model._get_name() + f"{target_piece}_{current_epoch}e_{current_batch}b_{LEARNING_RATE}lr.pth")
-        losses.to_csv(results_save_dir + model._get_name() + f"_{target_piece}_{LEARNING_RATE}lr_losses.csv", index=False)
-        accuracies.to_csv(results_save_dir + model._get_name() + f"_{target_piece}_{LEARNING_RATE}lr_accuracies.csv", index=False)
+        torch.save(best_model.state_dict(), model_save_dir + model._get_name() + f"_{target_piece}_{current_epoch}e_{current_batch}b.pth")
+        losses.to_csv(results_save_dir + model._get_name() + f"_{target_piece}_losses.csv", index=False)
+        accuracies.to_csv(results_save_dir + model._get_name() + f"_{target_piece}_accuracies.csv", index=False)
 
     return minValidLoss, minValidAccuracy
 
 if __name__=="__main__":
-
 
     # Add argparse for training piece selector vs piece networks
     parser = ArgumentParser()
@@ -154,23 +154,24 @@ if __name__=="__main__":
 
     print(f"Using device: {DEVICE}")
     print(f"num_workers: {NUM_WORKERS}") 
+    
 
     if INPUT == 'all':
+
         print("Training all networks...")
+        print(f"params: {BEST_PARAMS}")
         for p in ['selector', 'p', 'b', 'n', 'r', 'q', 'k']:
             print(f"Loading {p} data...")
             print(f"loading dataloader: training_2000elo.pickle")
-            trainLoader = create_dataloaders(dir=DATA_DIR, path="training_2000elo.pickle", target_piece=p)
+            trainLoader = create_dataloaders(dir=DATA_DIR, path="training_2000elo.pickle", target_piece=p, batch_size=2**BEST_PARAMS["batch_size_power"])
             validLoader = create_dataloaders(dir=DATA_DIR, path='validation_2000elo.pickle', target_piece=p)
             mockfish_train(
                 trainLoader, validLoader, Mockfish, 
                 model_save_dir=MODELS_DIR, results_save_dir=RESULTS_DIR+'training/', 
-                params={
-                    ""
-                },
+                params=BEST_PARAMS,
                 target_piece=p)
     else:
-        trainLoader = create_dataloaders(dir=DATA_DIR, path="training_2000elo.pickle", target_piece=INPUT)
+        trainLoader = create_dataloaders(dir=DATA_DIR, path="training_2000elo.pickle", target_piece=INPUT, batch_size=2**BEST_PARAMS["batch_size_power"])
         validLoader = create_dataloaders(dir=DATA_DIR, path="validation_2000elo.pickle", target_piece=INPUT)
         mockfish_train(
             trainLoader, validLoader, Mockfish, 

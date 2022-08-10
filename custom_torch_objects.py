@@ -61,9 +61,8 @@ class Mockfish(nn.Module):
 '''
 
 # hypertuning model
-
 class Mockfish(nn.Module):
-    def __init__(self, num_layers=1, hidden_size=256, dropout=0.0):
+    def __init__(self, num_layers=BEST_PARAMS["num_layers"], hidden_size=BEST_PARAMS["hidden_size"], dropout=BEST_PARAMS["dropout"]):
         super(Mockfish, self).__init__()
         layers = [
             nn.Conv2d(in_channels=6, out_channels=96, kernel_size=(3, 3), padding=(1, 1)),

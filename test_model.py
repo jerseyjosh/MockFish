@@ -30,9 +30,13 @@ def get_model_path(dir, piece, puzzle=False):
         if re.search(pattern, f):
             return dir + f
 
-def test_model(testLoader, ModelClass, model_path, target_piece='selector'):
+def test_model(testLoader, ModelClass, model_path, target_piece='selector', params=BEST_PARAMS):
 
-    model = ModelClass().to(DEVICE)
+    model = ModelClass(
+        num_layers=params["num_layers"],
+        hidden_size=params["hidden_size"],
+        dropout=params["dropout"]
+    ).to(DEVICE)
     print(model)
     model.load_state_dict(torch.load(model_path))
     model.eval()
@@ -74,9 +78,10 @@ if __name__ == "__main__":
         confusion_matrices = []
         print("Testing all networks...")
         for p in ['selector', 'p', 'b', 'n', 'r', 'q', 'k']:
-            testLoader = create_dataloaders(target_piece=p, path="puzzle_test.pickle")
-            model_path = get_model_path(MODELS_DIR, p, puzzle=False)
-            accuracy, class_accuracy, cm = test_model(testLoader, Mockfish, model_path=model_path, target_piece=p)
+            testLoader = create_dataloaders(dir=DATA_DIR, path="testing_2000elo.pickle", target_piece=p)
+            model_path = get_model_path(dir=MODELS_DIR, piece=p, puzzle=False)
+            accuracy, class_accuracy, cm = test_model(
+                testLoader, Mockfish, model_path=model_path, target_piece=p, params=BEST_PARAMS)
             accuracies.append(accuracy)
             class_accuracies.append(class_accuracy)
             confusion_matrices.append(cm)
@@ -85,7 +90,7 @@ if __name__ == "__main__":
             'accuracy':accuracies,
             'class_accuracy': class_accuracies,
             'confusion_matrix': confusion_matrices})
-        df.to_pickle(RESULTS_DIR + "mockfish_on_puzzles_testing_results.pickle")
+        df.to_pickle(RESULTS_DIR + "testing_results.pickle")
     else:
-        testLoader = create_dataloaders(target_piece=INPUT, path="puzzle_test.pickle")
+        testLoader = create_dataloaders(dir=DATA_DIR, path="testing_2000elo.pickle", target_piece=INPUT)
         test_model(testLoader, Mockfish, target_piece=INPUT)
