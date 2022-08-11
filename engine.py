@@ -80,50 +80,81 @@ class Engine():
             board.turn = white_turn
             board_state = torch.from_numpy(fen_to_board(fen=fen, white_turn=white_turn))[None, :]
 
-            from_square_probs = F.softmax(self.selector(board_state), dim=1)
-            from_square_probs *= torch.Tensor([1 if board.piece_at(i) and board.piece_at(i).symbol().isupper()==board.turn else 0 for i in range(64)])
-            from_square_probs /= from_square_probs.sum()
-            print(from_square_probs.sum())
+            from_square_scores = F.softmax(self.selector(board_state), dim=1)
+            from_square_scores *= torch.Tensor([1 if board.piece_at(i) and board.piece_at(i).symbol().isupper()==board.turn else 0 for i in range(64)])
 
-            pawn_scores = torch.outer(from_square_scores, self.pawn(board_state))
-            knight_scores = torch.outer(from_square_scores, self.knight(board_state))
-            bishop_scores = torch.outer(from_square_scores, self.bishop(board_state))
-            rook_scores = torch.outer(from_square_scores, self.rook(board_state))
-            queen_scores = torch.outer(from_square_scores, self.queen(board_state))
-            king_scores = torch.outer(from_square_scores, self.queen(board_state))
+            pawn_scores = F.softmax(self.pawn(board_state), dim=1)
+            knight_scores = F.softmax(self.knight(board_state), dim=1)
+            bishop_scores = F.softmax(self.bishop(board_state), dim=1)
+            rook_scores = F.softmax(self.rook(board_state), dim=1)
+            queen_scores = F.softmax(self.queen(board_state), dim=1)
+            king_scores = F.softmax(self.king(board_state), dim=1)
+
+            best_moves = []
+            best_scores = []
+
+            for square, score in enumerate(from_square_scores.flatten()):
+
+                if board.piece_at(square) and board.piece_at(square).symbol().isupper()==board.turn:
+
+                    if board.piece_at(square).symbol().lower()=='p':
+                        mask = torch.zeros(64)
+                        mask[[move.to_square for move in board.legal_moves if move.from_square==square]] = 1
+                        legal_pawn_scores = pawn_scores * mask
+                        if torch.max(legal_pawn_scores) > 0:
+                            best_moves.append((square, int(torch.argmax(legal_pawn_scores))))
+                            best_scores.append(score * torch.max(legal_pawn_scores))
+        
+                    if board.piece_at(square).symbol().lower()=='b':
+                        mask = torch.zeros(64)
+                        mask[[move.to_square for move in board.legal_moves if move.from_square==square]] = 1
+                        legal_bishop_scores = bishop_scores * mask
+                        if torch.max(legal_bishop_scores) > 0:
+                            best_moves.append((square, int(torch.argmax(legal_bishop_scores))))
+                            best_scores.append(score * torch.max(legal_bishop_scores))
+        
+                    if board.piece_at(square).symbol().lower()=='n':
+                        mask = torch.zeros(64)
+                        mask[[move.to_square for move in board.legal_moves if move.from_square==square]] = 1
+                        legal_knight_scores = knight_scores * mask
+                        if torch.max(legal_knight_scores) > 0:
+                            best_moves.append((square, int(torch.argmax(legal_knight_scores)))) 
+                            best_scores.append((score * torch.max(legal_knight_scores)))
+        
+                    if board.piece_at(square).symbol().lower()=='r':
+                        mask = torch.zeros(64)
+                        mask[[move.to_square for move in board.legal_moves if move.from_square==square]] = 1
+                        legal_rook_scores = rook_scores * mask
+                        if torch.max(legal_rook_scores) > 0:
+                            best_moves.append((square, int(torch.argmax(legal_rook_scores))))
+                            best_scores.append((score * torch.max(legal_rook_scores)))
+        
+                    if board.piece_at(square).symbol().lower()=='q':
+                        mask = torch.zeros(64)
+                        mask[[move.to_square for move in board.legal_moves if move.from_square==square]] = 1
+                        legal_queen_scores = queen_scores * mask
+                        if torch.max(legal_queen_scores) > 0:
+                            best_moves.append((square, int(torch.argmax(legal_queen_scores))))
+                            best_scores.append((score * torch.max(legal_queen_scores)))
+        
+                    if board.piece_at(square).symbol().lower()=='k':
+                        mask = torch.zeros(64)
+                        mask[[move.to_square for move in board.legal_moves if move.from_square==square]] = 1
+                        legal_king_scores = pawn_scores * mask
+                        if torch.max(legal_queen_scores) > 0:
+                            best_moves.append((square, int(torch.argmax(legal_king_scores))))
+                            best_scores.append((score * torch.max(legal_king_scores)))
+            
+
+            best_moves = np.array(best_moves)
+            best_scores = F.softmax(torch.Tensor(best_scores), dim=0, dtype=torch.float64)
+            print(best_scores.sum())
+            chosen_move = best_moves[np.random.choice(len(best_moves), 1, p=best_scores)]
+            print(chosen_move)
+            exit()
+            return chosen_move
 
 
-
-            from_square_probs = torch.sort(from_square_probs, descending=True)
-            from_squares = from_square_probs.indices[0]
-
-            if not white_turn:
-                from_squares = 63 * torch.ones(len(from_squares)) - from_squares
-
-            for square in from_squares:
-                if board.piece_at(int(square)) is not None:
-
-                    from_square = square
-                    piece_moved = board.piece_at(int(square))
-
-                    to_square_model = self.get_piece_model(piece_moved=piece_moved)
-                    to_square_probs = F.softmax(to_square_model(board_state), dim=1)
-                    to_square_probs = torch.sort(to_square_probs, descending=True)
-                    to_squares = to_square_probs.indices[0]
-
-                    if not white_turn:
-                        to_squares = 63 * torch.ones(len(to_squares)) - to_squares
-
-                    for square in to_squares:
-                        if board.is_legal(chess.Move(int(from_square), int(square))):
-                            to_square = square
-                            if str(board.piece_at(int(from_square))).lower() == 'p':
-                                promotion = 5
-                            else:
-                                promotion = None
-                            return chess.Move(
-                                int(from_square), int(to_square), 
-                                promotion=promotion if int(to_square)>56 else None)
                     
     def predict_move(self, fen, white_turn):
 
