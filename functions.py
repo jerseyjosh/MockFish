@@ -72,8 +72,10 @@ def fen_to_board(fen, piece_values=PIECE_VALUES, white_turn=True):
         return board
 
 
-def get_model_path(dir, piece):
+def get_model_path(dir, piece, puzzle=False):
     pattern = f"_{piece}_"
+    if puzzle:
+        pattern += ".*puzzles"
     for f in os.listdir(dir):
         if re.search(pattern, f):
             return dir + f

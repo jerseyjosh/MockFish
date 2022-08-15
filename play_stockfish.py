@@ -1,3 +1,4 @@
+from __future__ import print_function
 import numpy as np
 import chess
 import chess.engine
@@ -6,7 +7,7 @@ from IPython.display import display
 from config import *
 from functions import *
 from tqdm import tqdm
-
+from stockfish import Stockfish
 
 def print_unicode_board(board, perspective=chess.WHITE):
     """ Prints the position from a given perspective. """
@@ -31,34 +32,42 @@ def print_unicode_board(board, perspective=chess.WHITE):
 
 
 def load_mockfish():
+    #selector_path = "./models/Mockfish_selector_5e_13352b_puzzles.pth"
     selector_path = get_model_path(MODELS_DIR, 'selector')
+    selector_puzzles = get_model_path(MODELS_DIR, 'selector', puzzle=True)
     p_path = get_model_path(MODELS_DIR, 'p')
+    p_puzzles = get_model_path(MODELS_DIR, 'p', puzzle=True)
     b_path = get_model_path(MODELS_DIR, 'b')
+    b_puzzles = get_model_path(MODELS_DIR, 'b', puzzle=True)
     n_path = get_model_path(MODELS_DIR, 'n')
+    n_puzzles = get_model_path(MODELS_DIR, 'n', puzzle=True)
     r_path = get_model_path(MODELS_DIR, 'r')
+    r_puzzles = get_model_path(MODELS_DIR, 'r', puzzle=True)
     q_path = get_model_path(MODELS_DIR, 'q')
+    q_puzzles = get_model_path(MODELS_DIR, 'q', puzzle=True)
     k_path = get_model_path(MODELS_DIR, 'k')
-    mockfish = Engine(selector_path, p_path, b_path, n_path, r_path, q_path, k_path)
+    k_puzzles = get_model_path(MODELS_DIR, 'k', puzzle=True)
+    mockfish = Engine(selector_path, p_path, b_path, n_path, r_path, q_path, k_path, 
+                    selector_puzzles, p_puzzles, b_puzzles, n_puzzles, r_puzzles, q_puzzles, k_puzzles)
     return mockfish
 
 
-def get_mockfish_move(mockfish, board):
+def get_mockfish_move(mockfish, board, puzzle_mode=False):
     t0=time.time()
-    move = mockfish.predict_move_probabilistic(fen=board.fen(), white_turn=board.turn)
+    move = mockfish.predict_move_probabilistic(fen=board.fen(), white_turn=board.turn, puzzle_mode=puzzle_mode)
     t1 = time.time()
     time_taken = t1-t0
     return move, time_taken
 
 
-def play(stockfish_path, level, num_games):
+def play(stockfish_path, level, num_games, puzzle_threshold=np.inf):
 
     winning_games = []
 
     mockfish = load_mockfish()
+    engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
+    engine.configure({"Skill Level": STOCKFISH_LEVELS[level]["skill"]})
 
-    #engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
-    #engine.configure({"Skill Level": STOCKFISH_LEVELS[level]["skill"]})
-    engine = chess.engine.SimpleEngine.popen_xboard("./engines/stockfish1.exe")
     print("Stockfish settings:")
     print(STOCKFISH_LEVELS[level])
 
@@ -74,7 +83,7 @@ def play(stockfish_path, level, num_games):
 
             while not board.is_game_over():
                 if colour == board.turn:
-                    move, time_taken = get_mockfish_move(mockfish=mockfish, board=board)
+                    move, time_taken = get_mockfish_move(mockfish=mockfish, board=board, puzzle_mode=len(board.move_stack)>2*puzzle_threshold)
                     limit = chess.engine.Limit(time=STOCKFISH_LEVELS[level]['time'], depth=STOCKFISH_LEVELS[level]["depth"])
                 else:
                     move = engine.play(board, limit).move
@@ -83,6 +92,7 @@ def play(stockfish_path, level, num_games):
                 else:
                     print('error')
                     break
+
             if board.outcome():
                 if board.outcome().winner is not None:
                     if not (board.outcome().winner ^ colour):

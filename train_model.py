@@ -170,8 +170,10 @@ if __name__=="__main__":
                 params=BEST_PARAMS,
                 target_piece=p)
     else:
-        trainLoader = create_dataloaders(dir=DATA_DIR, path="training_2000elo.pickle", target_piece=INPUT, batch_size=2**BEST_PARAMS["batch_size_power"])
-        validLoader = create_dataloaders(dir=DATA_DIR, path="validation_2000elo.pickle", target_piece=INPUT)
+        trainLoader = create_dataloaders(dir=DATA_DIR, path="puzzle_training.pickle", target_piece=INPUT, batch_size=2**BEST_PARAMS["batch_size_power"])
+        validLoader = create_dataloaders(dir=DATA_DIR, path="puzzle_validation.pickle", target_piece=INPUT)
         mockfish_train(
             trainLoader, validLoader, Mockfish, 
-            model_save_dir=MODELS_DIR, results_save_dir=RESULTS_DIR+'training/', target_piece=INPUT)
+            model_save_dir=MODELS_DIR, results_save_dir=RESULTS_DIR+'puzzle_training/', 
+            params=BEST_PARAMS,
+            target_piece=INPUT)

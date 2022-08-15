@@ -8,38 +8,67 @@ from config import *
 from functions import *
 
 class Engine():
-    def __init__(self, selector_path, p_path, b_path, n_path, r_path, q_path, k_path, params=BEST_PARAMS):
+    def __init__(self, selector_path, p_path, b_path, n_path, r_path, q_path, k_path,
+                selector_puzzles, p_puzzles, b_puzzles, n_puzzles, r_puzzles, q_puzzles, k_puzzles):
 
         self.selector = Mockfish()
         self.selector.load_state_dict(torch.load(selector_path))
         self.selector.eval()
 
+        self.selector_puzzles = Mockfish()
+        self.selector_puzzles.load_state_dict(torch.load(selector_puzzles))
+        self.selector_puzzles.eval()
+
         self.pawn = Mockfish()
         self.pawn.load_state_dict(torch.load(p_path))
         self.pawn.eval()
+
+        self.pawn_puzzles = Mockfish()
+        self.pawn_puzzles.load_state_dict(torch.load(p_puzzles))
+        self.pawn_puzzles.eval()
 
         self.bishop = Mockfish()
         self.bishop.load_state_dict(torch.load(b_path))
         self.bishop.eval()
 
+        self.bishop_puzzles = Mockfish()
+        self.bishop_puzzles.load_state_dict(torch.load(b_puzzles))
+        self.bishop_puzzles.eval()
+
         self.knight = Mockfish()
         self.knight.load_state_dict(torch.load(n_path))
         self.knight.eval()
+
+        self.knight_puzzles = Mockfish()
+        self.knight_puzzles.load_state_dict(torch.load(n_puzzles))
+        self.knight_puzzles.eval()
 
         self.rook = Mockfish()
         self.rook.load_state_dict(torch.load(r_path))
         self.rook.eval()
 
+        self.rook_puzzles = Mockfish()
+        self.rook_puzzles.load_state_dict(torch.load(r_puzzles))
+        self.rook_puzzles.eval()
+
         self.queen = Mockfish()
         self.queen.load_state_dict(torch.load(q_path))
         self.queen.eval()
+
+        self.queen_puzzles = Mockfish()
+        self.queen_puzzles.load_state_dict(torch.load(q_puzzles))
+        self.queen_puzzles.eval()
 
         self.king = Mockfish()
         self.king.load_state_dict(torch.load(k_path))
         self.king.eval()
 
+        self.king_puzzles = Mockfish()
+        self.king_puzzles.load_state_dict(torch.load(k_puzzles))
+        self.king_puzzles.eval()
 
-    def play(self, colour='w', probabilistic=True):
+
+    def play(self, colour='w', probabilistic=True, puzzle_thresh = 10):
         
         if probabilistic:
             move_engine = self.predict_move_probabilistic
@@ -49,14 +78,23 @@ class Engine():
         with torch.no_grad():
 
             board = chess.Board()
+
             fen = board.fen()
-            white_turn = board.turn
 
             if colour=='b':
                 comp_move = move_engine(fen=fen, white_turn=board.turn)
                 board.push(comp_move)
 
             while not board.is_game_over():
+
+                if len(board.move_stack) > 2*puzzle_thresh:
+                    print("puzzle mode")
+                    self.king = self.king_puzzles
+                    self.pawn = self.pawn_puzzles
+                    self.bishop = self.bishop_puzzles
+                    self.knight = self.knight_puzzles
+                    self.rook = self.rook_puzzles
+                    self.queen = self.queen_puzzles
 
                 display(chess.svg.board(board, size=500, flipped = not board.turn))
                 #print(board)
@@ -78,7 +116,7 @@ class Engine():
                     display(chess.svg.board(board, size=500, flipped = board.turn))
                     print(f"checkmate: {board.is_game_over()}")
 
-    def predict_move_probabilistic(self, fen, white_turn):
+    def predict_move_probabilistic(self, fen, white_turn, puzzle_mode=False):
 
         with torch.no_grad():
 
@@ -86,14 +124,25 @@ class Engine():
             board.turn = white_turn
             board_state = torch.from_numpy(fen_to_board(fen=fen, white_turn=white_turn))[None, :]
 
-            from_square_scores = self.selector(board_state)
-            pawn_scores = self.pawn(board_state)
-            knight_scores = self.knight(board_state)
-            bishop_scores = self.bishop(board_state)
-            rook_scores = self.rook(board_state)
-            queen_scores = self.queen(board_state)
-            king_scores = self.king(board_state)
+            if puzzle_mode:
+                from_square_scores = self.selector_puzzles(board_state)
+                pawn_scores = self.pawn_puzzles(board_state)
+                knight_scores = self.knight_puzzles(board_state)
+                bishop_scores = self.bishop_puzzles(board_state)
+                rook_scores = self.rook_puzzles(board_state)
+                queen_scores = self.queen_puzzles(board_state)
+                king_scores = self.king_puzzles(board_state)
 
+            else:
+                from_square_scores = self.selector(board_state)
+                pawn_scores = self.pawn(board_state)
+                knight_scores = self.knight(board_state)
+                bishop_scores = self.bishop(board_state)
+                rook_scores = self.rook(board_state)
+                queen_scores = self.queen(board_state)
+                king_scores = self.king(board_state)
+
+           
 
             best_moves = []
             best_scores = []
@@ -193,8 +242,14 @@ class Engine():
             best_moves = np.array(best_moves)
             best_scores = F.softmax(torch.Tensor(best_scores), dim=0, dtype=torch.float64)
 
-            chosen_move = best_moves[np.random.choice(len(best_moves), 1, p=best_scores)]
-            from_square, to_square = chosen_move.flatten()
+            if puzzle_mode: # deterministic puzzle move choice
+                chosen_move = best_moves[np.argmax(best_scores)]
+                from_square, to_square = chosen_move.flatten()
+            
+            else:
+                chosen_move = best_moves[np.random.choice(len(best_moves), 1, p=best_scores)]
+                from_square, to_square = chosen_move.flatten()
+
 
             if str(board.piece_at(int(from_square))).lower() == 'p':
                 promotion = 5
