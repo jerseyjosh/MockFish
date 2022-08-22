@@ -20,7 +20,8 @@ def objective(trial):
         "hidden_size": trial.suggest_int("hidden_size", 100, 1000),
         "dropout": trial.suggest_discrete_uniform("dropout", 0, 0.7, 0.1),
         "learning_rate": trial.suggest_loguniform("learning_rate", 1e-4, 1e-2),
-        "batch_size_power": trial.suggest_int("batch_size_power", 5, 10)
+        "batch_size_power": trial.suggest_int("batch_size_power", 5, 10),
+        "weight_decay": trial.suggest_loguniform("weight_decay", 1e-6, 1e-2)
     }
 
     trainLoader = create_dataloaders(dir=DATA_DIR, path="training_2000elo.pickle", target_piece='selector', batch_size=2**params["batch_size_power"])
@@ -43,14 +44,14 @@ def objective(trial):
 
 if __name__=="__main__":
     print("Creating study...")
-    study = optuna.create_study(study_name='mockfish_tuning', direction="maximize")
+    study = optuna.create_study(study_name='mockfish_tuning_weight_decay', direction="maximize")
     print("Saving study...")
-    with open(RESULTS_DIR + "hypertuning/study.pickle", 'wb') as file:
+    with open(RESULTS_DIR + "study_weight_decay.pickle", 'wb') as file:
         pickle.dump(study, file)
     print("Optimizing study...")
     study.optimize(objective, n_trials=20)
     print("Saving study...")
-    with open(RESULTS_DIR + "hypertuning/study.pickle", 'wb') as file:
+    with open(RESULTS_DIR + "hypertuning/study_weight_decay.pickle", 'wb') as file:
         pickle.dump(study, file)
     best_trial = study.best_trial  
 
@@ -58,9 +59,10 @@ if __name__=="__main__":
     print(best_trial.values)
     print(best_trial.params)
 
+    '''
     trainLoader = create_dataloaders(dir=DATA_DIR, path="training_2000elo.pickle", target_piece='selector')
     validLoader = create_dataloaders(dir=DATA_DIR, path='validation_2000elo.pickle', target_piece='selector')
-
+    
     _,best_accuracy = mockfish_train(
         trainLoader, 
         validLoader, 
@@ -72,5 +74,7 @@ if __name__=="__main__":
         save_model=True
     )
 
+
     print("Best Accuracy:")
     print(best_accuracy)
+    '''

@@ -65,13 +65,9 @@ def play(stockfish_path, level, num_games, puzzle_threshold=np.inf):
     winning_games = []
 
     mockfish = load_mockfish()
-    engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
-    engine.configure({"Skill Level": STOCKFISH_LEVELS[level]["skill"]})
 
     print("Stockfish settings:")
     print(STOCKFISH_LEVELS[level])
-
-    limit = chess.engine.Limit(time=STOCKFISH_LEVELS[level]['time'], depth=STOCKFISH_LEVELS[level]["depth"])
 
     results = []
 
@@ -81,17 +77,22 @@ def play(stockfish_path, level, num_games, puzzle_threshold=np.inf):
 
             board = chess.Board()
 
+            engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
+            engine.configure({"Skill Level": STOCKFISH_LEVELS[level]["skill"]})
+
             while not board.is_game_over():
                 if colour == board.turn:
                     move, time_taken = get_mockfish_move(mockfish=mockfish, board=board, puzzle_mode=len(board.move_stack)>2*puzzle_threshold)
-                    limit = chess.engine.Limit(time=STOCKFISH_LEVELS[level]['time'], depth=STOCKFISH_LEVELS[level]["depth"])
+                    limit = chess.engine.Limit(time=time_taken, depth=STOCKFISH_LEVELS[level]["depth"])
+                    #limit = chess.engine.Limit(time=STOCKFISH_LEVELS[level]['time'], depth=STOCKFISH_LEVELS[level]["depth"])
                 else:
                     move = engine.play(board, limit).move
                 if board.is_legal(move):
                     board.push(move)
                 else:
-                    print('error')
                     break
+            
+            engine.quit()
 
             if board.outcome():
                 if board.outcome().winner is not None:
@@ -104,9 +105,7 @@ def play(stockfish_path, level, num_games, puzzle_threshold=np.inf):
                     results.append(None)
             else:
                 print(False)
-                results.append(False)
-
-    engine.quit()     
+                results.append(False)     
 
     results = [int(result) if result is not None else 0.5 for result in results]
     
@@ -116,7 +115,7 @@ def play(stockfish_path, level, num_games, puzzle_threshold=np.inf):
 
 if __name__=="__main__":
 
-    NUM_GAMES = 100
+    NUM_GAMES = 1000
 
     levels = np.arange(1, 9)
     win_rates = []
@@ -124,7 +123,7 @@ if __name__=="__main__":
     lose_rates = []
 
     for level in levels:
-        results, winning_games = play("./stockfish", level=level, num_games=NUM_GAMES)
+        results, winning_games = play("./engines/stockfish", level=level, num_games=NUM_GAMES)
         win_rates.append(results.count(1) / len(results))
         draw_rates.append(results.count(0.5) / len(results))
         lose_rates.append(results.count(0) / len(results))

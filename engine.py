@@ -8,6 +8,7 @@ from config import *
 from functions import *
 
 class Engine():
+
     def __init__(self, selector_path, p_path, b_path, n_path, r_path, q_path, k_path,
                 selector_puzzles, p_puzzles, b_puzzles, n_puzzles, r_puzzles, q_puzzles, k_puzzles):
 
@@ -67,17 +68,21 @@ class Engine():
         self.king_puzzles.load_state_dict(torch.load(k_puzzles))
         self.king_puzzles.eval()
 
+    def play(self, colour='w', starting_fen=None, probabilistic=True, puzzle_thresh=np.inf):
 
-    def play(self, colour='w', probabilistic=True, puzzle_thresh = 10):
-        
+        PUZZLE_MODE=False
+    
         if probabilistic:
             move_engine = self.predict_move_probabilistic
         else:
-            move_engine = self.predict_move
+            move_engine = self.predict_move_deterministic
 
         with torch.no_grad():
 
-            board = chess.Board()
+            if starting_fen:
+                board = chess.Board(fen=starting_fen)
+            else:
+                board = chess.Board()
 
             fen = board.fen()
 
@@ -102,6 +107,9 @@ class Engine():
                 move_is_legal = False
                 while not move_is_legal:
                     user_move = input("Your move: ")
+                    if user_move == 'puzzle':
+                        print("activating puzzle mode")
+                        PUZZLE_MODE=True
                     try:
                         board.push_san(user_move)
                         move_is_legal = True
@@ -109,17 +117,59 @@ class Engine():
                         print(f"Illegal move: {user_move}")
 
                 fen = board.fen()
-                comp_move = move_engine(fen=fen, white_turn=board.turn)
+                print(f"puzzle: {PUZZLE_MODE}")
+                comp_move = move_engine(fen=fen, white_turn=board.turn, puzzle_mode=PUZZLE_MODE)
                 try:
                     board.push(comp_move)
                 except:
                     display(chess.svg.board(board, size=500, flipped = board.turn))
                     print(f"checkmate: {board.is_game_over()}")
-
-    def predict_move_probabilistic(self, fen, white_turn, puzzle_mode=False):
+        display(chess.svg.board(board, size=500, flipped = board.turn))
+                          
+    def get_scores(self, network, fen, white_turn, puzzle_mode=False):
 
         with torch.no_grad():
 
+            board = chess.Board(fen=fen)
+            board.turn = white_turn
+            board_state = torch.from_numpy(fen_to_board(fen=fen, white_turn=white_turn))[None, :]
+
+            if puzzle_mode:
+                if network=="selector":
+                    return torch.flip(self.selector_puzzles(board_state).reshape(8,8), dims=(0,))
+                if network=="p":
+                    return torch.flip(self.pawn_puzzles(board_state).reshape(8,8), dims=(0,))
+                if network=="b":
+                    return torch.flip(self.bishop_puzzles(board_state).reshape(8,8), dims=(0,))
+                if network=="n":
+                    return torch.flip(self.knight_puzzles(board_state).reshape(8,8), dims=(0,))
+                if network=="r":
+                    return torch.flip(self.rook_puzzles(board_state).reshape(8,8), dims=(0,))
+                if network=="q":
+                    return torch.flip(self.queen_puzzles(board_state).reshape(8,8), dims=(0,))
+                if network=="k":
+                    return torch.flip(self.king_puzzles(board_state).reshape(8,8), dims=(0,))
+
+            else:
+                if network=="selector":
+                    return torch.flip(self.selector(board_state).reshape(8,8), dims=(0,))
+                if network=="p":
+                    return torch.flip(self.pawn(board_state).reshape(8,8), dims=(0,))
+                if network=="b":
+                    return torch.flip(self.bishop(board_state).reshape(8,8), dims=(0,))
+                if network=="n":
+                    return torch.flip(self.knight(board_state).reshape(8,8), dims=(0,))
+                if network=="r":
+                    return torch.flip(self.rook(board_state).reshape(8,8), dims=(0,))
+                if network=="q":
+                    return torch.flip(self.queen(board_state).reshape(8,8), dims=(0,))
+                if network=="k":
+                    return torch.flip(self.king(board_state).reshape(8,8), dims=(0,))
+    
+    def predict_move_probabilistic(self, fen, white_turn, puzzle_mode=False):
+
+        with torch.no_grad():
+        
             board = chess.Board(fen=fen)
             board.turn = white_turn
             board_state = torch.from_numpy(fen_to_board(fen=fen, white_turn=white_turn))[None, :]
@@ -141,9 +191,7 @@ class Engine():
                 rook_scores = self.rook(board_state)
                 queen_scores = self.queen(board_state)
                 king_scores = self.king(board_state)
-
-           
-
+            
             best_moves = []
             best_scores = []
 
@@ -257,9 +305,7 @@ class Engine():
                 promotion = None
             move = chess.Move(from_square, to_square, promotion=promotion if to_square>55 or to_square<8 else None)
             return move
-
-
-                    
+                 
     def predict_move_deterministic(self, fen, white_turn):
 
         with torch.no_grad():
@@ -299,7 +345,8 @@ class Engine():
                             return chess.Move(
                                 int(from_square), int(to_square), 
                                 promotion=promotion if int(to_square)>55 or to_square<8 else None)
-                    
+
+    
 
     def get_piece_model(self, piece_moved):
         piece_moved = str(piece_moved).lower()
@@ -321,14 +368,9 @@ class Engine():
 
 if __name__=="__main__":
     
-    selector_path = get_model_path(MODELS_DIR, 'selector')
-    p_path = get_model_path(MODELS_DIR, 'p')
-    b_path = get_model_path(MODELS_DIR, 'b')
-    n_path = get_model_path(MODELS_DIR, 'n')
-    r_path = get_model_path(MODELS_DIR, 'r')
-    q_path = get_model_path(MODELS_DIR, 'q')
-    k_path = get_model_path(MODELS_DIR, 'k')
+    NETWORK_PATHS = [get_model_path(MODELS_DIR, p, puzzle=puzzle) for puzzle in [True, False] for p in ['selector', 'p', 'b', 'n', 'r', 'q', 'k']]
     
-    engine = Engine(selector_path, p_path, b_path, n_path, r_path, q_path, k_path)
-    board = chess.Board()
+    engine = Engine(*NETWORK_PATHS)
+
+    engine.play(colour='w')
 

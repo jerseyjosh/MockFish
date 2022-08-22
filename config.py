@@ -18,7 +18,8 @@ BEST_PARAMS = {
     'hidden_size': 561,
     'dropout': 0.2,
     'learning_rate': 0.0002122650129983147,
-    'batch_size_power': 7
+    'batch_size_power': 7,
+    'weight_decay': 0
  }
 
 # Paths

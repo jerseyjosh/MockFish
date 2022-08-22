@@ -27,7 +27,7 @@ def mockfish_train(trainLoader,
     ).to(DEVICE)
     print(model)
 
-    optimizer = Adam(model.parameters(), lr=params["learning_rate"])
+    optimizer = Adam(model.parameters(), lr=params["learning_rate"], weight_decay=params["learning_rate"])
     criterion = nn.CrossEntropyLoss()
 
     trainLosses = []
