@@ -21,5 +21,6 @@ of 6, when under equal time constraints.
 
 ## Playing Mockfish
 
-Challenge Mockfish at https://lichess.org/@/mockfishBOT
+Challenge Mockfish at https://lichess.org/@/mockfishBOT.
+
 The engine is also playable through play_engine.ipynb if the models are saved locally and paths fed into the required cells.
